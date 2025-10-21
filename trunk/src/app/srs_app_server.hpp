@@ -71,6 +71,7 @@ class ISrsHourGlass;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
 class ISrsRtcConnection;
+class SrsPythonAddons;
 
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
@@ -141,6 +142,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsLog *log_;
     ISrsStatistic *stat_;
     ISrsAppFactory *app_factory_;
+    SrsPythonAddons *python_addons_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

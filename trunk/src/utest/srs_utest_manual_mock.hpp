@@ -297,6 +297,11 @@ public:
     virtual bool is_force_grace_quit() { return false; }
     virtual bool inotify_auto_reload() { return false; }
     virtual bool auto_reload_for_docker() { return false; }
+    virtual bool get_python_addons_enabled() { return false; }
+    virtual std::vector<SrsConfDirective *> get_python_addons() { return std::vector<SrsConfDirective *>(); }
+    virtual std::string get_python_addon_script(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_python_addon_args(SrsConfDirective *conf) { return ""; }
+    virtual std::string get_python_addon_work_dir(SrsConfDirective *conf) { return ""; }
     virtual std::vector<std::string> get_listens() { return std::vector<std::string>(); }
     virtual bool get_rtmps_enabled() { return false; }
     virtual std::vector<std::string> get_rtmps_listen() { return std::vector<std::string>(); }

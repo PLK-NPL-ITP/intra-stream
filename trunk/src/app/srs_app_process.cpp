@@ -9,9 +9,14 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
 #ifndef _WIN32
@@ -40,6 +45,7 @@ SrsProcess::SrsProcess()
     is_started_ = false;
     fast_stopped_ = false;
     pid_ = -1;
+    pdeathsig_ = 0;
 }
 
 SrsProcess::~SrsProcess()
@@ -131,6 +137,16 @@ srs_error_t SrsProcess::initialize(string binary, vector<string> argv)
     return err;
 }
 
+void SrsProcess::set_work_dir(std::string path)
+{
+    work_dir_ = path;
+}
+
+void SrsProcess::set_parent_exit_signal(int signo)
+{
+    pdeathsig_ = signo;
+}
+
 srs_error_t srs_redirect_output(string from_file, int to_fd)
 {
     srs_error_t err = srs_success;
@@ -213,6 +229,23 @@ srs_error_t SrsProcess::start()
         // ignore the SIGINT and SIGTERM
         signal(SIGINT, SIG_IGN);
         signal(SIGTERM, SIG_IGN);
+
+        if (!work_dir_.empty()) {
+            if (::chdir(work_dir_.c_str()) < 0) {
+                fprintf(stdout, "child process error, chdir to %s failed: %s\n",
+                        work_dir_.c_str(), strerror(errno));
+                exit(-1);
+            }
+        }
+
+#ifdef __linux__
+        if (pdeathsig_ != 0) {
+            if (prctl(PR_SET_PDEATHSIG, pdeathsig_) != 0) {
+                fprintf(stdout, "child process warning, prctl(PR_SET_PDEATHSIG, %d) failed: %s\n",
+                        pdeathsig_, strerror(errno));
+            }
+        }
+#endif
 
         // redirect standard I/O, if it failed, output error to stdout, and exit child process.
         if ((err = redirect_io()) != srs_success) {

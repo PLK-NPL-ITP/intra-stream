@@ -296,10 +296,10 @@ MODULE_FILES=("srs_app_server" "srs_app_rtmp_conn" "srs_app_rtmp_source"
         "srs_app_heartbeat" "srs_app_http_client" "srs_app_http_static"
         "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
         "srs_app_mpegts_udp" "srs_app_listener" "srs_app_async_call"
-        "srs_app_caster_flv" "srs_app_latest_version" "srs_app_process"
-        "srs_app_dash" "srs_app_fragment" "srs_app_dvr" "srs_app_ng_exec"
+    "srs_app_caster_flv" "srs_app_latest_version" "srs_app_process"
+    "srs_app_dash" "srs_app_fragment" "srs_app_dvr" "srs_app_ng_exec"
         "srs_app_coworkers" "srs_app_circuit_breaker" "srs_app_factory"
-        "srs_app_stream_token" "srs_app_http_stream")
+    "srs_app_stream_token" "srs_app_http_stream" "srs_app_python_addons")
 # Always include SRT app modules
 MODULE_FILES+=("srs_app_srt_server" "srs_app_srt_listener" "srs_app_srt_conn" "srs_app_srt_source")
 MODULE_FILES+=("srs_app_rtc_conn" "srs_app_rtc_dtls" "srs_app_rtc_network"
@@ -556,6 +556,15 @@ install:
 	@echo "Now copy binary files"
 	@mkdir -p \$(__REAL_INSTALL)/objs
 	@cp -f objs/srs \$(__REAL_INSTALL)/objs
+	@if [ -d python ]; then \
+		mkdir -p \$(__REAL_INSTALL)/python; \
+		cp -Rf python/ \$(__REAL_INSTALL)/python/; \
+	fi
+	@if [ -d objs/python_addons_venv ]; then \
+		mkdir -p \$(__REAL_INSTALL)/objs; \
+		rm -rf \$(__REAL_INSTALL)/objs/python_addons_venv; \
+		cp -Rf objs/python_addons_venv \$(__REAL_INSTALL)/objs/; \
+	fi
 	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
 	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
@@ -606,6 +615,50 @@ echo 'Configure ok! '
 #####################################################################################
 # create objs/logs for ffmpeg to write log.
 mkdir -p ${SRS_OBJS}/logs
+
+#####################################################################################
+# prepare python addons virtual environment
+#####################################################################################
+PYTHON_ADDONS_VENV="${SRS_OBJS}/python_addons_venv"
+PYTHON_ADDONS_VERSION="python3.12"
+PYTHON_ADDONS_REQUIREMENTS="${SRS_WORKDIR}/python_addons/requirements.txt"
+
+if ! command -v "${PYTHON_ADDONS_VERSION}" >/dev/null 2>&1; then
+    echo -e "${RED}python_addons: ${PYTHON_ADDONS_VERSION} not found in PATH. Please install Python 3.12.${BLACK}"
+    exit 1
+fi
+
+if [[ ! -d "${PYTHON_ADDONS_VENV}" ]]; then
+    echo "python_addons: Creating virtual environment at ${PYTHON_ADDONS_VENV}"
+    "${PYTHON_ADDONS_VERSION}" -m venv "${PYTHON_ADDONS_VENV}" || {
+        echo -e "${RED}python_addons: Failed to create virtual environment${BLACK}"
+        exit 1
+    }
+else
+    echo "python_addons: Using existing virtual environment at ${PYTHON_ADDONS_VENV}"
+fi
+
+PYTHON_ADDONS_PIP="${PYTHON_ADDONS_VENV}/bin/pip"
+if [[ ! -x "${PYTHON_ADDONS_PIP}" ]]; then
+    echo -e "${RED}python_addons: Pip not found in ${PYTHON_ADDONS_PIP}${BLACK}"
+    exit 1
+fi
+
+echo "python_addons: Upgrading pip"
+"${PYTHON_ADDONS_PIP}" install --upgrade pip || {
+    echo -e "${RED}python_addons: Failed to upgrade pip${BLACK}"
+    exit 1
+}
+
+if [[ -f "${PYTHON_ADDONS_REQUIREMENTS}" ]]; then
+    echo "python_addons: Installing requirements from ${PYTHON_ADDONS_REQUIREMENTS}"
+    "${PYTHON_ADDONS_PIP}" install -r "${PYTHON_ADDONS_REQUIREMENTS}" || {
+        echo -e "${RED}python_addons: Failed to install requirements${BLACK}"
+        exit 1
+    }
+else
+    echo -e "${YELLOW}Warning: python_addons requirements file ${PYTHON_ADDONS_REQUIREMENTS} not found; skipping install.${BLACK}"
+fi
 
 #####################################################################################
 # configure summary

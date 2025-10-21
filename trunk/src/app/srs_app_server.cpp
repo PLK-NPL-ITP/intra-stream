@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_stream_token.hpp>
+#include <srs_app_python_addons.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
@@ -227,6 +228,7 @@ SrsServer::SrsServer()
     log_ = _srs_log;
     stat_ = _srs_stat;
     app_factory_ = _srs_app_factory;
+    python_addons_ = new SrsPythonAddons();
 }
 
 SrsServer::~SrsServer()
@@ -295,10 +297,15 @@ SrsServer::~SrsServer()
     log_ = NULL;
     stat_ = NULL;
     app_factory_ = NULL;
+    srs_freep(python_addons_);
 }
 
 void SrsServer::dispose()
 {
+    if (python_addons_) {
+        python_addons_->shutdown(true);
+    }
+
     config_->unsubscribe(this);
 
     // Destroy all listeners.
@@ -331,6 +338,10 @@ void SrsServer::dispose()
 
 void SrsServer::gracefully_dispose()
 {
+    if (python_addons_) {
+        python_addons_->shutdown(false);
+    }
+
     config_->unsubscribe(this);
 
     // Always wait for a while to start.
@@ -515,6 +526,10 @@ srs_error_t SrsServer::run()
 
     if ((err = ingest()) != srs_success) {
         return srs_error_wrap(err, "ingest");
+    }
+
+    if ((err = python_addons_->start()) != srs_success) {
+        return srs_error_wrap(err, "python addons");
     }
 
     if ((err = live_sources_->initialize()) != srs_success) {

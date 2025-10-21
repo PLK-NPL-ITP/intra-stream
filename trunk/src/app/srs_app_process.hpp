@@ -73,6 +73,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // The cli to fork process.
     std::string cli_;
     std::string actual_cli_;
+    std::string work_dir_;
+    int pdeathsig_;
 
 public:
     SrsProcess();
@@ -118,6 +120,12 @@ public:
     virtual void fast_stop();
     // Directly kill process, never use it except server quiting.
     virtual void fast_kill();
+
+public:
+    // Set working directory for child process.
+    void set_work_dir(std::string path);
+    // Set signal to deliver to child if parent exits unexpectedly.
+    void set_parent_exit_signal(int signo);
 };
 
 #endif

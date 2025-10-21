@@ -306,6 +306,14 @@ public:
     virtual bool auto_reload_for_docker() = 0;
 
 public:
+    // Python addons config
+    virtual bool get_python_addons_enabled() = 0;
+    virtual std::vector<SrsConfDirective *> get_python_addons() = 0;
+    virtual std::string get_python_addon_script(SrsConfDirective *conf) = 0;
+    virtual std::string get_python_addon_args(SrsConfDirective *conf) = 0;
+    virtual std::string get_python_addon_work_dir(SrsConfDirective *conf) = 0;
+
+public:
     // RTMP config
     virtual std::vector<std::string> get_listens() = 0;
     virtual bool get_rtmps_enabled() = 0;
@@ -825,6 +833,12 @@ public:
     virtual bool inotify_auto_reload();
     // Whether enable auto reload config for docker.
     virtual bool auto_reload_for_docker();
+    // Python addons
+    virtual bool get_python_addons_enabled();
+    virtual std::vector<SrsConfDirective *> get_python_addons();
+    virtual std::string get_python_addon_script(SrsConfDirective *conf);
+    virtual std::string get_python_addon_args(SrsConfDirective *conf);
+    virtual std::string get_python_addon_work_dir(SrsConfDirective *conf);
     // For tcmalloc, get the release rate.
     virtual double tcmalloc_release_rate();
     // Thread pool section.
