@@ -1,4 +1,3 @@
-
 # Build artifacts
 **/objs/**
 **/build/**

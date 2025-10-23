@@ -68,8 +68,11 @@ RUN mkdir -p /usr/local/srs/objs/ffmpeg/bin && \
 RUN /usr/local/srs/objs/ffmpeg/bin/ffmpeg -version && \
     ldd /usr/local/srs/objs/srs
 
+VOLUME /usr/local/srs/conf
+RUN mkdir -p /usr/local/srs/DVR_records
+VOLUME /usr/local/srs/DVR_records
+
 # Default workdir and command.
 WORKDIR /usr/local/srs
 ENV SRS_DAEMON=off SRS_IN_DOCKER=on
 CMD ["./objs/srs", "-c", "conf/docker.conf"]
-

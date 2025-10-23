@@ -1,3 +1,6 @@
 [submodule "dev-docker"]
 	path = dev-docker
 	url = https://github.com/ossrs/dev-docker.git
+[submodule "proxy-go"]
+	path = proxy-go
+	url = https://github.com/ossrs/proxy-go.git
