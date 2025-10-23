@@ -130,7 +130,7 @@ srs_error_t SrsPythonAddons::reload_from_config()
         base_dir_ = ".";
     }
 
-    python_bin_ = resolve_path(base_dir_, "objs/python_addons_venv/bin/python");
+    python_bin_ = resolve_path(base_dir_, "objs/python_venv/bin/python");
 
     SrsPath path;
     if (!path.exists(python_bin_)) {

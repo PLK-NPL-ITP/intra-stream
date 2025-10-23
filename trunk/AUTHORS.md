@@ -13,6 +13,7 @@ The maintainers of SRS, ranked by the number of commits:
 - `LiPeng<lipeng19811218@gmail.com>`
 - `ZhaoWenjie<zhaowenjie@tal.com>`
 - `WuPengqiang<309554135@qq.com>`
+- `Jason-JP-Yang<jiepengyang@outlook.com>`
 
 ## CONTRIBUTORS
 

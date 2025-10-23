@@ -31,6 +31,8 @@ SRS_HTTP_API=YES
 SRS_HTTP_CORE=YES
 SRS_HLS=YES
 SRS_DVR=YES
+# Whether prepare Python addons virtual environment.
+SRS_PYTHON_ADDONS=YES
 # 
 ################################################################
 # FFmpeg stub is the stub code in SRS for ingester or encoder.
@@ -186,6 +188,7 @@ Features:
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
   --ffmpeg-opus=on|off      Whether enable the FFmpeg native opus codec. Default: $(value2switch $SRS_FFMPEG_OPUS)
+    --python-addons=on|off    Whether prepare Python addons virtualenv. Default: $(value2switch $SRS_PYTHON_ADDONS)
 
   --prefix=<path>           The absolute installation path. Default: $SRS_PREFIX
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg. Default: $SRS_JOBS
@@ -355,6 +358,7 @@ function parse_user_option() {
         --signal-api)                   SRS_SIGNAL_API=$(switch2value $value) ;;
         --ffmpeg-fit)                   SRS_FFMPEG_FIT=$(switch2value $value) ;;
         --ffmpeg-opus)                  SRS_FFMPEG_OPUS=$(switch2value $value) ;;
+    --python-addons)                SRS_PYTHON_ADDONS=$(switch2value $value) ;;
         --h265)                         SRS_H265=$(switch2value $value) ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
@@ -692,6 +696,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-fit=$(value2switch $SRS_FFMPEG_FIT)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-ffmpeg=$(value2switch $SRS_USE_SYS_FFMPEG)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ffmpeg-opus=$(value2switch $SRS_FFMPEG_OPUS)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --python-addons=$(value2switch $SRS_PYTHON_ADDONS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --nasm=$(value2switch $SRS_NASM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srtp-nasm=$(value2switch $SRS_SRTP_ASM)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --sys-srtp=$(value2switch $SRS_USE_SYS_SRTP)"
@@ -796,6 +801,7 @@ function check_option_conflicts() {
     if [[ $SRS_GPERF_MP == RESERVED ]]; then echo "you must specifies the gperf-mp, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_GPERF_CP == RESERVED ]]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_GPROF == RESERVED ]]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi
+    if [[ $SRS_PYTHON_ADDONS == RESERVED ]]; then echo "you must specifies the python-addons, see: ./configure --help"; __check_ok=NO; fi
     if [[ -z $SRS_PREFIX ]]; then echo "you must specifies the prefix, see: ./configure --prefix"; __check_ok=NO; fi
     if [[ $__check_ok == NO ]]; then
         exit 1;

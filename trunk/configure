@@ -619,45 +619,49 @@ mkdir -p ${SRS_OBJS}/logs
 #####################################################################################
 # prepare python addons virtual environment
 #####################################################################################
-PYTHON_ADDONS_VENV="${SRS_OBJS}/python_addons_venv"
-PYTHON_ADDONS_VERSION="python3.12"
-PYTHON_ADDONS_REQUIREMENTS="${SRS_WORKDIR}/python_addons/requirements.txt"
+if [[ $SRS_PYTHON_ADDONS == YES ]]; then
+    PYTHON_ADDONS_VENV="${SRS_OBJS}/python_venv"
+    PYTHON_ADDONS_VERSION="python3.12"
+    PYTHON_ADDONS_REQUIREMENTS="${SRS_WORKDIR}/python_addons/requirements.txt"
 
-if ! command -v "${PYTHON_ADDONS_VERSION}" >/dev/null 2>&1; then
-    echo -e "${RED}python_addons: ${PYTHON_ADDONS_VERSION} not found in PATH. Please install Python 3.12.${BLACK}"
-    exit 1
-fi
+    if ! command -v "${PYTHON_ADDONS_VERSION}" >/dev/null 2>&1; then
+        echo -e "${RED}python_addons: ${PYTHON_ADDONS_VERSION} not found in PATH. Please install Python 3.12.${BLACK}"
+        exit 1
+    fi
 
-if [[ ! -d "${PYTHON_ADDONS_VENV}" ]]; then
-    echo "python_addons: Creating virtual environment at ${PYTHON_ADDONS_VENV}"
-    "${PYTHON_ADDONS_VERSION}" -m venv "${PYTHON_ADDONS_VENV}" || {
-        echo -e "${RED}python_addons: Failed to create virtual environment${BLACK}"
+    if [[ ! -d "${PYTHON_ADDONS_VENV}" ]]; then
+        echo "python_addons: Creating virtual environment at ${PYTHON_ADDONS_VENV}"
+        "${PYTHON_ADDONS_VERSION}" -m venv "${PYTHON_ADDONS_VENV}" || {
+            echo -e "${RED}python_addons: Failed to create virtual environment${BLACK}"
+            exit 1
+        }
+    else
+        echo "python_addons: Using existing virtual environment at ${PYTHON_ADDONS_VENV}"
+    fi
+
+    PYTHON_ADDONS_PIP="${PYTHON_ADDONS_VENV}/bin/pip"
+    if [[ ! -x "${PYTHON_ADDONS_PIP}" ]]; then
+        echo -e "${RED}python_addons: Pip not found in ${PYTHON_ADDONS_PIP}${BLACK}"
+        exit 1
+    fi
+
+    echo "python_addons: Upgrading pip"
+    "${PYTHON_ADDONS_PIP}" install --upgrade pip || {
+        echo -e "${RED}python_addons: Failed to upgrade pip${BLACK}"
         exit 1
     }
+
+    if [[ -f "${PYTHON_ADDONS_REQUIREMENTS}" ]]; then
+        echo "python_addons: Installing requirements from ${PYTHON_ADDONS_REQUIREMENTS}"
+        "${PYTHON_ADDONS_PIP}" install -r "${PYTHON_ADDONS_REQUIREMENTS}" || {
+            echo -e "${RED}python_addons: Failed to install requirements${BLACK}"
+            exit 1
+        }
+    else
+        echo -e "${YELLOW}Warning: python_addons requirements file ${PYTHON_ADDONS_REQUIREMENTS} not found; skipping install.${BLACK}"
+    fi
 else
-    echo "python_addons: Using existing virtual environment at ${PYTHON_ADDONS_VENV}"
-fi
-
-PYTHON_ADDONS_PIP="${PYTHON_ADDONS_VENV}/bin/pip"
-if [[ ! -x "${PYTHON_ADDONS_PIP}" ]]; then
-    echo -e "${RED}python_addons: Pip not found in ${PYTHON_ADDONS_PIP}${BLACK}"
-    exit 1
-fi
-
-echo "python_addons: Upgrading pip"
-"${PYTHON_ADDONS_PIP}" install --upgrade pip || {
-    echo -e "${RED}python_addons: Failed to upgrade pip${BLACK}"
-    exit 1
-}
-
-if [[ -f "${PYTHON_ADDONS_REQUIREMENTS}" ]]; then
-    echo "python_addons: Installing requirements from ${PYTHON_ADDONS_REQUIREMENTS}"
-    "${PYTHON_ADDONS_PIP}" install -r "${PYTHON_ADDONS_REQUIREMENTS}" || {
-        echo -e "${RED}python_addons: Failed to install requirements${BLACK}"
-        exit 1
-    }
-else
-    echo -e "${YELLOW}Warning: python_addons requirements file ${PYTHON_ADDONS_REQUIREMENTS} not found; skipping install.${BLACK}"
+    echo "python_addons: Virtual environment setup disabled"
 fi
 
 #####################################################################################
@@ -780,6 +784,11 @@ if [[ $SRS_GPROF == YES ]]; then
     echo -e "${YELLOW}The gprof(GNU profile tool) is enabled, performance may suffer.${BLACK}"
 else
     echo -e "${GREEN}Note: The gprof(GNU profile tool) is disabled.${BLACK}"
+fi
+if [[ $SRS_PYTHON_ADDONS == YES ]]; then
+    echo -e "${GREEN}Note: The python addons is enabled.${BLACK}"
+else
+    echo -e "${YELLOW}Note: The python addons is disabled.${BLACK}"
 fi
 if [[ $SRS_CROSS_BUILD == YES ]]; then
     echo -e "${YELLOW}The cross-build is enabled.${BLACK}"
