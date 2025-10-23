@@ -1,0 +1,3 @@
+[submodule "dev-docker"]
+	path = dev-docker
+	url = https://github.com/ossrs/dev-docker.git

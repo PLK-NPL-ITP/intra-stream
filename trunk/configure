@@ -560,10 +560,14 @@ install:
 		mkdir -p \$(__REAL_INSTALL)/python; \
 		cp -Rf python/ \$(__REAL_INSTALL)/python/; \
 	fi
-	@if [ -d objs/python_addons_venv ]; then \
+	@if [ -d python_addons ]; then \
+		mkdir -p \$(__REAL_INSTALL); \
+		cp -Rf python_addons \$(__REAL_INSTALL)/; \
+	fi
+	@if [ -d objs/python_venv ]; then \
 		mkdir -p \$(__REAL_INSTALL)/objs; \
-		rm -rf \$(__REAL_INSTALL)/objs/python_addons_venv; \
-		cp -Rf objs/python_addons_venv \$(__REAL_INSTALL)/objs/; \
+		rm -rf \$(__REAL_INSTALL)/objs/python_venv; \
+		cp -Rf objs/python_venv \$(__REAL_INSTALL)/objs/; \
 	fi
 	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
