@@ -150,7 +150,15 @@ function apply_system_options() {
     OS_IS_LOONGSON=$(uname -r |grep -q loongson && echo YES)
 
     # Use gcc to detect the CPU arch.
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then echo "Please install gcc"; exit 1; fi
+    if ! gcc --version >/dev/null 2>/dev/null; then
+        ret=$?
+        echo -e "${RED}GCC is required for early configure checks that run before the full dependency scan.${BLACK}"
+        echo -e "${RED}Additional tools may also be missing; review manually if needed:${BLACK}"
+        echo -e "${RED}  required tools: perl gcc g++ make patch unzip automake pkg-config which${BLACK}"
+        echo -e "${RED}  optional tools for SRT (if enabled): tclsh cmake${BLACK}"
+        echo -e "${RED}Install gcc and rerun configure.${BLACK}"
+        exit $ret
+    fi
     OS_IS_LOONGARCH64=$(gcc -dM -E - </dev/null |grep '#define __loongarch64 1' -q && echo YES)
     OS_IS_MIPS64=$(gcc -dM -E - </dev/null |grep '#define __mips64 1' -q && echo YES)
     OS_IS_X86_64=$(gcc -dM -E - </dev/null |grep -q '#define __x86_64 1' && echo YES)

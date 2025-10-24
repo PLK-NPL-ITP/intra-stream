@@ -6,7 +6,15 @@ OS_KERNRL_RELEASE=$(uname -r|awk -F '-' '{print $1}')
 OS_PREFIX="Platform"
 
 # Detect gcc, which is required.
-gcc --version >/dev/null 2>/dev/null || (ret=$?; echo "Please install gcc"; exit $ret)
+if ! gcc --version >/dev/null 2>/dev/null; then
+  ret=$?
+  echo -e "${RED}GCC is required for early configure checks that run before the full dependency scan.${BLACK}"
+  echo -e "${RED}Additional tools may also be missing; review manually if needed:${BLACK}"
+  echo -e "${RED}  required tools: perl gcc g++ make patch unzip automake pkg-config which${BLACK}"
+  echo -e "${RED}  optional tools for SRT (if enabled): tclsh cmake${BLACK}"
+  echo -e "${RED}Install gcc and rerun configure.${BLACK}"
+  exit $ret
+fi
 
 # Discover SRS version from header file.
 mkdir -p ${SRS_OBJS} &&

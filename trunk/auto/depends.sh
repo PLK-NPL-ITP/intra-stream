@@ -43,146 +43,127 @@ echo ""
 #####################################################################################
 # Check dependency tools.
 #####################################################################################
-if [[ $SRS_OSX == YES ]]; then
-    brew --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install brew at https://brew.sh/"; exit $ret;
-    fi
-fi
-# Check perl, which is depended by automake for building libopus etc.
-perl --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+declare -a SRS_MISSING_DEPS=()
+declare -a SRS_INSTALL_PKGS_CENTOS=()
+declare -a SRS_INSTALL_PKGS_UBUNTU=()
+declare -a SRS_INSTALL_FALLBACK=()
+
+function srs_add_unique() {
+    local array_name="$1"; shift
+    local value="$1"
+    local -n ref=${array_name}
+
+    for item in "${ref[@]}"; do
+        if [[ "$item" == "$value" ]]; then
+            return 0
+        fi
+    done
+    ref+=("$value")
+}
+
+function srs_print_install_hint() {
+    local title="$1"; shift
+    local centos_pkg="$1"; shift
+    local ubuntu_pkg="$1"; shift
+    local default_msg="$1"; shift
+
     if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install perl by:"
-        echo "  yum install -y perl"
+        if [[ -n ${centos_pkg} ]]; then
+            srs_add_unique SRS_INSTALL_PKGS_CENTOS "${centos_pkg}"
+            return 0
+        fi
     elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install perl by:"
-        echo "  apt install -y perl"
-    else
-        echo "Please install perl"
+        if [[ -n ${ubuntu_pkg} ]]; then
+            srs_add_unique SRS_INSTALL_PKGS_UBUNTU "${ubuntu_pkg}"
+            return 0
+        fi
     fi
-    exit $ret;
-fi
-gcc --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install gcc by:"
-        echo "  yum install -y gcc"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install gcc by:"
-        echo "  apt install -y gcc"
-    else
-        echo "Please install gcc"
+
+    local hint="${default_msg}"
+    if [[ -z ${hint} ]]; then
+        hint="${title}"
     fi
-    exit $ret;
-fi
-g++ --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install g++ by:"
-        echo "  yum install -y gcc-c++"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install g++ by:"
-        echo "  apt install -y g++"
-    else
-        echo "Please install gcc-c++"
+    hint="${hint#Please install }"
+    srs_add_unique SRS_INSTALL_FALLBACK "${hint}"
+}
+
+function srs_check_command() {
+    local cmd="$1"; shift
+    local name="$1"; shift
+    local centos_pkg="$1"; shift
+    local ubuntu_pkg="$1"; shift
+    local default_msg="$1"; shift
+
+    if eval "${cmd}" >/dev/null 2>&1; then
+        return 0
     fi
-    exit $ret;
-fi
-make --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install make by:"
-        echo "  yum install -y make"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install make by:"
-        echo "  apt install -y make"
-    else
-        echo "Please install make"
+
+    srs_print_install_hint "${name}" "${centos_pkg}" "${ubuntu_pkg}" "${default_msg}"
+    SRS_MISSING_DEPS+=("${name}")
+    return 1
+}
+
+function srs_report_missing_dependencies() {
+    if [[ ${#SRS_MISSING_DEPS[@]} -eq 0 ]]; then
+        return 0
     fi
-    exit $ret;
-fi
-patch --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install patch by:"
-        echo "  yum install -y patch"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install patch by:"
-        echo "  apt install -y patch"
+
+    local summary_command=""
+    if [[ $OS_IS_UBUNTU == YES && ${#SRS_INSTALL_PKGS_UBUNTU[@]} -gt 0 ]]; then
+        summary_command="sudo apt install -y ${SRS_INSTALL_PKGS_UBUNTU[*]}"
+    elif [[ $OS_IS_CENTOS == YES && ${#SRS_INSTALL_PKGS_CENTOS[@]} -gt 0 ]]; then
+        summary_command="sudo yum install -y ${SRS_INSTALL_PKGS_CENTOS[*]}"
+    elif [[ ${#SRS_INSTALL_FALLBACK[@]} -gt 0 ]]; then
+        summary_command="${SRS_INSTALL_FALLBACK[*]}"
     else
-        echo "Please install patch"
+        summary_command="install ${SRS_MISSING_DEPS[*]}"
     fi
-    exit $ret;
-fi
-unzip -v >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install unzip by:"
-        echo "  yum install -y unzip"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install unzip by:"
-        echo "  apt install -y unzip"
-    else
-        echo "Please install unzip"
-    fi
-    exit $ret;
-fi
-automake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install automake by:"
-        echo "  yum install -y automake"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install automake by:"
-        echo "  apt install -y automake"
-    else
-        echo "Please install automake"
-    fi
-    exit $ret;
-fi
+
+    echo ""
+    echo -e "${RED}Missing dependencies (${#SRS_MISSING_DEPS[@]}): ${SRS_MISSING_DEPS[*]}${BLACK}"
+    echo -e "${RED}Please install missing dependencies by: ${summary_command}${BLACK}"
+    echo -e "${RED}Please install the missing dependencies above and rerun configure.${BLACK}"
+    exit 1
+}
+
+echo "Checking required tools: perl gcc g++ make patch unzip automake pkg-config which"
 if [[ $SRS_VALGRIND == YES ]]; then
-    valgrind --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "Please install valgrind"; exit $ret;
-    fi
-    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-        echo "Please install valgrind-dev"; exit $ret;
-    fi
+    echo "Checking optional tools for valgrind: valgrind (headers)"
 fi
-# Check tclsh, which is depended by SRT.
 if [[ $SRS_SRT == YES ]]; then
-    tclsh <<< "exit" >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        if [[ $OS_IS_CENTOS == YES ]]; then
-            echo "Please install tclsh by:"
-            echo "  yum install -y tcl"
-        elif [[ $OS_IS_UBUNTU == YES ]]; then
-            echo "Please install tclsh by:"
-            echo "  apt install -y tclsh"
-        else
-            echo "Please install tclsh"
+    echo "Checking optional tools for SRT: tclsh cmake"
+fi
+
+if [[ $SRS_OSX == YES ]]; then
+    srs_check_command "brew --version" "brew" "" "" "Please install brew at https://brew.sh/"
+fi
+
+srs_check_command "perl --version" "perl" "perl" "perl" ""
+srs_check_command "gcc --version" "gcc" "gcc" "gcc" ""
+srs_check_command "g++ --version" "g++" "gcc-c++" "g++" "Please install gcc-c++"
+srs_check_command "make --version" "make" "make" "make" ""
+srs_check_command "patch --version" "patch" "patch" "patch" ""
+srs_check_command "unzip -v" "unzip" "unzip" "unzip" ""
+srs_check_command "automake --version" "automake" "automake" "automake" ""
+
+if [[ $SRS_VALGRIND == YES ]]; then
+    if srs_check_command "valgrind --version" "valgrind" "valgrind" "valgrind" ""; then
+        if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+            srs_print_install_hint "valgrind-dev" "valgrind-devel" "valgrind-dev" "Please install valgrind-dev"
+            SRS_MISSING_DEPS+=("valgrind-dev")
         fi
-        exit $ret;
-    fi
-    cmake --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-        if [[ $OS_IS_CENTOS == YES ]]; then
-            echo "Please install cmake by:"
-            echo "  yum install -y cmake"
-        elif [[ $OS_IS_UBUNTU == YES ]]; then
-            echo "Please install cmake by:"
-            echo "  apt install -y cmake"
-        else
-            echo "Please install cmake"
-        fi
-        exit $ret;
     fi
 fi
-pkg-config --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    echo "Please install pkg-config"; exit $ret;
+
+if [[ $SRS_SRT == YES ]]; then
+    srs_check_command "tclsh <<< \"exit\"" "tclsh" "tcl" "tclsh" "Please install tclsh"
+    srs_check_command "cmake --version" "cmake" "cmake" "cmake" ""
 fi
-which ls >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        echo "Please install which by:"
-        echo "  yum install -y which"
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        echo "Please install which by:"
-        echo "  apt install -y which"
-    else
-        echo "Please install which"
-    fi
-    exit $ret;
-fi
+
+srs_check_command "pkg-config --version" "pkg-config" "pkgconfig" "pkg-config" "Please install pkg-config"
+srs_check_command "command -v which" "which" "which" "which" ""
+
+srs_report_missing_dependencies
 
 #####################################################################################
 # Try to load cache if exists /usr/local/srs-cache
