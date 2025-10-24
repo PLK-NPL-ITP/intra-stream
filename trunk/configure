@@ -628,11 +628,6 @@ if [[ $SRS_PYTHON_ADDONS == YES ]]; then
     PYTHON_ADDONS_VERSION="python3.12"
     PYTHON_ADDONS_REQUIREMENTS="${SRS_WORKDIR}/python_addons/requirements.txt"
 
-    if ! command -v "${PYTHON_ADDONS_VERSION}" >/dev/null 2>&1; then
-        echo -e "${RED}python_addons: ${PYTHON_ADDONS_VERSION} not found in PATH. Please install Python 3.12.${BLACK}"
-        exit 1
-    fi
-
     if [[ ! -d "${PYTHON_ADDONS_VENV}" ]]; then
         echo "python_addons: Creating virtual environment at ${PYTHON_ADDONS_VENV}"
         "${PYTHON_ADDONS_VERSION}" -m venv "${PYTHON_ADDONS_VENV}" || {

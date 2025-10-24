@@ -133,6 +133,9 @@ fi
 if [[ $SRS_SRT == YES ]]; then
     echo "Checking optional tools for SRT: tclsh cmake"
 fi
+if [[ $SRS_PYTHON_ADDONS == YES ]]; then
+    echo "Checking optional tools for python_addons: python3.12 python3.12-venv"
+fi
 
 if [[ $SRS_OSX == YES ]]; then
     srs_check_command "brew --version" "brew" "" "" "Please install brew at https://brew.sh/"
@@ -158,6 +161,11 @@ fi
 if [[ $SRS_SRT == YES ]]; then
     srs_check_command "tclsh <<< \"exit\"" "tclsh" "tcl" "tclsh" "Please install tclsh"
     srs_check_command "cmake --version" "cmake" "cmake" "cmake" ""
+fi
+
+if [[ $SRS_PYTHON_ADDONS == YES ]]; then
+    srs_check_command "python3.12 --version" "python3.12" "python3.12" "python3.12" "Please install python3.12"
+    srs_check_command "python3.12 -m venv -h" "python3.12-venv" "python3.12-venv" "python3.12-venv" "Please install python3.12-venv"
 fi
 
 srs_check_command "pkg-config --version" "pkg-config" "pkgconfig" "pkg-config" "Please install pkg-config"
