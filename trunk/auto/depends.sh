@@ -43,135 +43,98 @@ echo ""
 #####################################################################################
 # Check dependency tools.
 #####################################################################################
-declare -a SRS_MISSING_DEPS=()
-declare -a SRS_INSTALL_PKGS_CENTOS=()
-declare -a SRS_INSTALL_PKGS_UBUNTU=()
-declare -a SRS_INSTALL_FALLBACK=()
-
-function srs_add_unique() {
-    local array_name="$1"; shift
-    local value="$1"
-    local -n ref=${array_name}
-
-    for item in "${ref[@]}"; do
-        if [[ "$item" == "$value" ]]; then
-            return 0
-        fi
-    done
-    ref+=("$value")
-}
-
-function srs_print_install_hint() {
-    local title="$1"; shift
-    local centos_pkg="$1"; shift
-    local ubuntu_pkg="$1"; shift
-    local default_msg="$1"; shift
-
-    if [[ $OS_IS_CENTOS == YES ]]; then
-        if [[ -n ${centos_pkg} ]]; then
-            srs_add_unique SRS_INSTALL_PKGS_CENTOS "${centos_pkg}"
-            return 0
-        fi
-    elif [[ $OS_IS_UBUNTU == YES ]]; then
-        if [[ -n ${ubuntu_pkg} ]]; then
-            srs_add_unique SRS_INSTALL_PKGS_UBUNTU "${ubuntu_pkg}"
-            return 0
-        fi
+if [[ $SRS_OSX == YES ]]; then
+    brew --version >/dev/null 2>/dev/null; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "Please install brew at https://brew.sh/"; exit $ret;
     fi
-
-    local hint="${default_msg}"
-    if [[ -z ${hint} ]]; then
-        hint="${title}"
-    fi
-    hint="${hint#Please install }"
-    srs_add_unique SRS_INSTALL_FALLBACK "${hint}"
-}
-
-function srs_check_command() {
-    local cmd="$1"; shift
-    local name="$1"; shift
-    local centos_pkg="$1"; shift
-    local ubuntu_pkg="$1"; shift
-    local default_msg="$1"; shift
-
-    if eval "${cmd}" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    srs_print_install_hint "${name}" "${centos_pkg}" "${ubuntu_pkg}" "${default_msg}"
-    SRS_MISSING_DEPS+=("${name}")
-    return 1
-}
-
-function srs_report_missing_dependencies() {
-    if [[ ${#SRS_MISSING_DEPS[@]} -eq 0 ]]; then
-        return 0
-    fi
-
-    local summary_command=""
-    if [[ $OS_IS_UBUNTU == YES && ${#SRS_INSTALL_PKGS_UBUNTU[@]} -gt 0 ]]; then
-        summary_command="sudo apt install -y ${SRS_INSTALL_PKGS_UBUNTU[*]}"
-    elif [[ $OS_IS_CENTOS == YES && ${#SRS_INSTALL_PKGS_CENTOS[@]} -gt 0 ]]; then
-        summary_command="sudo yum install -y ${SRS_INSTALL_PKGS_CENTOS[*]}"
-    elif [[ ${#SRS_INSTALL_FALLBACK[@]} -gt 0 ]]; then
-        summary_command="${SRS_INSTALL_FALLBACK[*]}"
-    else
-        summary_command="install ${SRS_MISSING_DEPS[*]}"
-    fi
-
-    echo ""
-    echo -e "${RED}Missing dependencies (${#SRS_MISSING_DEPS[@]}): ${SRS_MISSING_DEPS[*]}${BLACK}"
-    echo -e "${RED}Please install missing dependencies by: ${summary_command}${BLACK}"
-    echo -e "${RED}Please install the missing dependencies above and rerun configure.${BLACK}"
-    exit 1
-}
-
-echo "Checking required tools: perl gcc g++ make patch unzip automake pkg-config which"
-if [[ $SRS_VALGRIND == YES ]]; then
-    echo "Checking optional tools for valgrind: valgrind (headers)"
 fi
+
+# Arrays to track missing dependencies
+MISSING_DEPS=()
+MISSING_DEPS_UBUNTU=()
+MISSING_DEPS_CENTOS=()
+MISSING_DEPS_OSX=()
+
+# Helper function to check if a command exists
+check_command() {
+    local cmd=$1
+    local cmd_name=$2
+    local ubuntu_pkg=$3
+    local centos_pkg=$4
+    local osx_pkg=$5
+
+    $cmd >/dev/null 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+        MISSING_DEPS+=("$cmd_name")
+        if [[ ! -z "$ubuntu_pkg" ]]; then
+            MISSING_DEPS_UBUNTU+=("$ubuntu_pkg")
+        fi
+        if [[ ! -z "$centos_pkg" ]]; then
+            MISSING_DEPS_CENTOS+=("$centos_pkg")
+        fi
+        if [[ ! -z "$osx_pkg" ]]; then
+            MISSING_DEPS_OSX+=("$osx_pkg")
+        fi
+        return 1
+    fi
+    return 0
+}
+
+# Check required tools
+echo "Checking required tools: perl gcc g++ make patch unzip automake pkg-config which"
+check_command "perl --version" "perl" "perl" "perl" "perl"
+check_command "gcc --version" "gcc" "gcc" "gcc" "gcc"
+check_command "g++ --version" "g++" "g++" "gcc-c++" "gcc"
+check_command "make --version" "make" "make" "make" "make"
+check_command "patch --version" "patch" "patch" "patch" "gpatch"
+check_command "unzip -v" "unzip" "unzip" "unzip" "unzip"
+check_command "automake --version" "automake" "automake" "automake" "automake"
+check_command "pkg-config --version" "pkg-config" "pkg-config" "pkgconfig" "pkg-config"
+check_command "which ls" "which" "which" "which" "which"
+
+# Check optional tools for valgrind
+if [[ $SRS_VALGRIND == YES ]]; then
+    check_command "valgrind --version" "valgrind" "valgrind" "valgrind" "valgrind"
+    if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
+        MISSING_DEPS+=("valgrind-dev")
+        MISSING_DEPS_UBUNTU+=("valgrind")
+        MISSING_DEPS_CENTOS+=("valgrind-devel")
+        MISSING_DEPS_OSX+=("valgrind")
+    fi
+fi
+
+# Check optional tools for SRT
 if [[ $SRS_SRT == YES ]]; then
     echo "Checking optional tools for SRT: tclsh cmake"
-fi
-if [[ $SRS_PYTHON_ADDONS == YES ]]; then
-    echo "Checking optional tools for python_addons: python3.12 python3.12-venv"
-fi
-
-if [[ $SRS_OSX == YES ]]; then
-    srs_check_command "brew --version" "brew" "" "" "Please install brew at https://brew.sh/"
-fi
-
-srs_check_command "perl --version" "perl" "perl" "perl" ""
-srs_check_command "gcc --version" "gcc" "gcc" "gcc" ""
-srs_check_command "g++ --version" "g++" "gcc-c++" "g++" "Please install gcc-c++"
-srs_check_command "make --version" "make" "make" "make" ""
-srs_check_command "patch --version" "patch" "patch" "patch" ""
-srs_check_command "unzip -v" "unzip" "unzip" "unzip" ""
-srs_check_command "automake --version" "automake" "automake" "automake" ""
-
-if [[ $SRS_VALGRIND == YES ]]; then
-    if srs_check_command "valgrind --version" "valgrind" "valgrind" "valgrind" ""; then
-        if [[ ! -f /usr/include/valgrind/valgrind.h ]]; then
-            srs_print_install_hint "valgrind-dev" "valgrind-devel" "valgrind-dev" "Please install valgrind-dev"
-            SRS_MISSING_DEPS+=("valgrind-dev")
-        fi
+    # Special check for tclsh
+    tclsh <<< "exit" >/dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        MISSING_DEPS+=("tclsh")
+        MISSING_DEPS_UBUNTU+=("tclsh")
+        MISSING_DEPS_CENTOS+=("tcl")
+        MISSING_DEPS_OSX+=("tcl-tk")
     fi
+    check_command "cmake --version" "cmake" "cmake" "cmake" "cmake"
 fi
 
-if [[ $SRS_SRT == YES ]]; then
-    srs_check_command "tclsh <<< \"exit\"" "tclsh" "tcl" "tclsh" "Please install tclsh"
-    srs_check_command "cmake --version" "cmake" "cmake" "cmake" ""
+# Report all missing dependencies at once
+if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "Missing dependencies (${#MISSING_DEPS[@]}): ${RED}${MISSING_DEPS[@]}${BLACK}"
+
+    if [[ $OS_IS_UBUNTU == YES && ${#MISSING_DEPS_UBUNTU[@]} -gt 0 ]]; then
+        echo -e "Please install missing dependencies by: ${GREEN}sudo apt install -y ${MISSING_DEPS_UBUNTU[@]}${BLACK}"
+    elif [[ $OS_IS_CENTOS == YES && ${#MISSING_DEPS_CENTOS[@]} -gt 0 ]]; then
+        echo -e "Please install missing dependencies by: ${GREEN}sudo yum install -y ${MISSING_DEPS_CENTOS[@]}${BLACK}"
+    elif [[ $SRS_OSX == YES && ${#MISSING_DEPS_OSX[@]} -gt 0 ]]; then
+        echo -e "Please install missing dependencies by: ${GREEN}brew install ${MISSING_DEPS_OSX[@]}${BLACK}"
+    else
+        echo "Please install the missing dependencies above."
+    fi
+
+    echo "Please install the missing dependencies above and rerun configure."
+    exit 1
 fi
-
-if [[ $SRS_PYTHON_ADDONS == YES ]]; then
-    srs_check_command "python3.12 --version" "python3.12" "python3.12" "python3.12" "Please install python3.12"
-    srs_check_command "python3.12 -m venv -h" "python3.12-venv" "python3.12-venv" "python3.12-venv" "Please install python3.12-venv"
-fi
-
-srs_check_command "pkg-config --version" "pkg-config" "pkgconfig" "pkg-config" "Please install pkg-config"
-srs_check_command "command -v which" "which" "which" "which" ""
-
-srs_report_missing_dependencies
 
 #####################################################################################
 # Try to load cache if exists /usr/local/srs-cache
