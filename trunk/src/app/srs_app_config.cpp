@@ -22,6 +22,7 @@
 #endif
 
 #include <algorithm>
+#include <regex.h>
 #include <vector>
 using namespace std;
 
@@ -351,13 +352,44 @@ bool srs_config_apply_filter(SrsConfDirective *dvr_apply, ISrsRequest *req)
     }
 
     vector<string> &args = dvr_apply->args_;
-    if (args.size() == 1 && dvr_apply->arg0() == "all") {
-        return true;
+
+    string id;
+    if (req) {
+        id = req->app_ + "/" + req->stream_;
     }
 
-    string id = req->app_ + "/" + req->stream_;
-    if (std::find(args.begin(), args.end(), id) != args.end()) {
-        return true;
+    for (vector<string>::iterator it = args.begin(); it != args.end(); ++it) {
+        const string &pattern = *it;
+
+        if (pattern == "all") {
+            return true;
+        }
+
+        if (!req) {
+            continue;
+        }
+
+        if (pattern == id) {
+            return true;
+        }
+
+        string anchored = string("^") + "(" + pattern + ")" + "$";
+
+        regex_t re;
+        int rc = regcomp(&re, anchored.c_str(), REG_EXTENDED | REG_NOSUB);
+        if (rc != 0) {
+            char errbuf[128];
+            regerror(rc, &re, errbuf, sizeof(errbuf));
+            srs_warn("Ignore invalid dvr_apply regex=%s, error=%s", pattern.c_str(), errbuf);
+            continue;
+        }
+
+        rc = regexec(&re, id.c_str(), 0, NULL, 0);
+        regfree(&re);
+
+        if (rc == 0) {
+            return true;
+        }
     }
 
     return false;

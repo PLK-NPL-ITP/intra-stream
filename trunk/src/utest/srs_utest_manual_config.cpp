@@ -2482,8 +2482,35 @@ VOID TEST(ConfigUnitTest, ApplyFilter)
 
     if (true) {
         SrsConfDirective d;
+        SrsRequest r;
+        r.app_ = "live";
+        r.stream_ = "stream";
+        d.args_.push_back("^live/.*");
+        EXPECT_TRUE(srs_config_apply_filter(&d, &r));
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        SrsRequest r;
+        r.app_ = "live";
+        r.stream_ = "stream";
+        d.args_.push_back("^prod/.*");
+        EXPECT_FALSE(srs_config_apply_filter(&d, &r));
+    }
+
+    if (true) {
+        SrsConfDirective d;
         d.args_.push_back("live/stream");
         SrsRequest r;
+        EXPECT_FALSE(srs_config_apply_filter(&d, &r));
+    }
+
+    if (true) {
+        SrsConfDirective d;
+        SrsRequest r;
+        r.app_ = "live";
+        r.stream_ = "stream";
+        d.args_.push_back("[invalid");
         EXPECT_FALSE(srs_config_apply_filter(&d, &r));
     }
 }

@@ -152,6 +152,10 @@ This feature is similar to nginx control module, but stronger than nginx.
 User can use [http raw api](./http-api.md) to control when to dvr specified stream.
 Please read [351](https://github.com/ossrs/srs/issues/459#issuecomment-134983742).
 
+The filter accepts regular expressions, so you can match a single stream or a set of
+streams. For example, `.*` enables DVR for every stream while `^live/.*` targets all
+streams under the app `live`.
+
 The following exmaple dvr `live/stream1`和`live/stream2`, the config:
 ```
 vhost xxx {
