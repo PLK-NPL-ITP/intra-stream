@@ -181,6 +181,8 @@ srs_error_t SrsPythonAddons::reload_from_config()
             return srs_error_wrap(err, "init python addon %s", script_path.c_str());
         }
 
+        srs_info("python_addons: addon #%d script=%s, work_dir=%s", (int)i, script_path.c_str(), work_dir.c_str());
+
         SrsPythonAddonEntry addon;
         addon.script_path = script_path;
         addon.work_dir = work_dir;

@@ -256,14 +256,8 @@ srs_error_t SrsProcess::start()
         // should never close the fd 3+, for it myabe used.
         // for fd should close at exec, use fnctl to set it.
 
-        // log basic info to stderr.
-        if (true) {
-            fprintf(stdout, "\n");
-            fprintf(stdout, "process ppid=%d, cid=%s, pid=%d, in=%d, out=%d, err=%d\n",
-                    ppid, cid.c_str(), getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
-            fprintf(stdout, "process binary=%s, cli: %s\n", bin_.c_str(), cli_.c_str());
-            fprintf(stdout, "process actual cli: %s\n", actual_cli_.c_str());
-        }
+        // Child process info has been logged by parent process via srs_trace(),
+        // so we don't need to print it here to avoid duplicate logs.
 
         // memory leak in child process, it's ok.
         char **argv = new char *[params_.size() + 1];

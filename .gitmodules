@@ -4,3 +4,6 @@
 [submodule "proxy-go"]
 	path = proxy-go
 	url = https://github.com/ossrs/proxy-go.git
+[submodule "trunk/intra-stream_site"]
+	path = trunk/intra-stream_site
+	url = git@github.com:PLK-NPL-ITP/livestream_site.git

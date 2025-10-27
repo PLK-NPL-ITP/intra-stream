@@ -625,7 +625,7 @@ mkdir -p ${SRS_OBJS}/logs
 #####################################################################################
 if [[ $SRS_PYTHON_ADDONS == YES ]]; then
     PYTHON_ADDONS_VENV="${SRS_OBJS}/python_venv"
-    PYTHON_ADDONS_VERSION="python3.12"
+    PYTHON_ADDONS_VERSION="python3.13"
     PYTHON_ADDONS_REQUIREMENTS="${SRS_WORKDIR}/python_addons/requirements.txt"
 
     if [[ ! -d "${PYTHON_ADDONS_VENV}" ]]; then

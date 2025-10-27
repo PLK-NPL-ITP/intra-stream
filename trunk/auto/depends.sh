@@ -117,6 +117,13 @@ if [[ $SRS_SRT == YES ]]; then
     check_command "cmake --version" "cmake" "cmake" "cmake" "cmake"
 fi
 
+# Check optional tools for python addons
+if [[ $SRS_PYTHON_ADDONS == YES ]]; then
+    echo "Checking optional tools for python addons: python3.13 python3.13-venv"
+    check_command "python3.13 --version" "python3.13" "python3.13" "python3.13" "python@3.13"
+    check_command "python3.13 -m venv --help" "python3.13-venv" "python3.13-venv" "python3.13-venv" "python@3.13"
+fi
+
 # Report all missing dependencies at once
 if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
     echo ""
