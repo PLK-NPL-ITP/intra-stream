@@ -463,16 +463,17 @@ help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>"
 	@echo "     help            Display this help menu"
 	@echo "     clean           Cleanup project and all depends"
-	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM}"
+	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM} and all depends"
 	@echo "     server          Build the srs and other modules in main"
 	@echo "     utest           Build the utest for srs"
 	@echo "     install         Install srs to the prefix path"
 	@echo "     uninstall       Uninstall srs from prefix path"
 	@echo "To rebuild special module:"
 	@echo "     st              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
-	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit"
+	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit"
 	@echo "To reconfigure special depends:"
 	@echo "     clean_openssl   Remove the openssl cache."
+	@echo "     clean_srt       Remove the srt cache."
 	@echo "     clean_srtp2     Remove the libsrtp2 cache."
 	@echo "     clean_opus      Remove the opus cache."
 	@echo "     clean_ffmpeg    Remove the FFmpeg cache."
@@ -481,49 +482,54 @@ help:
 	@echo "     make"
 	@echo "     make help"
 
-doclean:
-	(cd ${SRS_OBJS} && rm -rf srs srs_utest srs.exe srs_utest.exe $__mcleanups)
-	(cd ${SRS_OBJS} && rm -rf src/* include lib)
-	(mkdir -p ${SRS_OBJS}/utest && cd ${SRS_OBJS}/utest && rm -rf *.o *.a)
-
 clean: clean_srs
 
 destroy:
-	(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM})
+	(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM} && rm -rf srs srs_utest src/ utest/ research/))
 
 clean_srs:
-	@(cd ${SRS_OBJS} && rm -rf srs srs_utest src/* utest/*)
+	@(cd ${SRS_OBJS} && rm -rf srs srs_utest src/ utest/ research/)
 
 clean_openssl:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/openssl-1.1-fit/
 	@echo "Please rebuild openssl by: ./configure"
 
+clean_srt:
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit/
+	@echo "Please rebuild srt by: ./configure"
+
 clean_srtp2:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2/
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp2-fit/
 	@echo "Please rebuild libsrtp2 by: ./configure"
 
 clean_opus:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus/
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/
 	@echo "Please rebuild opus by: ./configure"
 
 clean_ffmpeg:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg/
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/
 	@echo "Please rebuild FFmpeg by: ./configure"
 
 clean_st:
-	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st/
+	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/
 	@echo "Please rebuild ST by: ./configure"
 
 st:
-	@rm -f ${SRS_OBJS}/srs srs_utest
+	@rm -f ${SRS_OBJS}/srs ${SRS_OBJS}/srs_utest
 	@\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs clean
 	@env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} CC=\$(CC) CXX=\$(CXX) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB)
 	@echo "Please rebuild srs by: make"
 
 ffmpeg:
-	@rm -f ${SRS_OBJS}/srs srs_utest
-	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit
-	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4.2-fit install-libs
+	@rm -f ${SRS_OBJS}/srs ${SRS_OBJS}/srs_utest
+	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit
+	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit install-libs
 	@echo "Please rebuild srs by: make"
 
 END
