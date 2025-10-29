@@ -1223,6 +1223,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
     live_sources_ = _srs_sources;
     srt_sources_ = _srs_srt_sources;
     circuit_breaker_ = _srs_circuit_breaker;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
@@ -1268,6 +1269,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     live_sources_ = NULL;
     srt_sources_ = NULL;
     circuit_breaker_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescription *stream_desc)
@@ -1289,13 +1291,16 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
         return srs_error_wrap(err, "rtc: stat client");
     }
 
+    // Use SDP sample rate to initialize track rate for A/V sync.
+    bool init_rate_from_sdp = config_->get_rtc_init_rate_from_sdp(req_->vhost_);
+
     if (stream_desc->audio_track_desc_) {
-        audio_tracks_.push_back(new SrsRtcAudioRecvTrack(receiver_, stream_desc->audio_track_desc_));
+        audio_tracks_.push_back(new SrsRtcAudioRecvTrack(receiver_, stream_desc->audio_track_desc_, init_rate_from_sdp));
     }
 
     for (int i = 0; i < (int)stream_desc->video_track_descs_.size(); ++i) {
         SrsRtcTrackDescription *desc = stream_desc->video_track_descs_.at(i);
-        video_tracks_.push_back(new SrsRtcVideoRecvTrack(receiver_, desc));
+        video_tracks_.push_back(new SrsRtcVideoRecvTrack(receiver_, desc, init_rate_from_sdp));
     }
 
     int twcc_id = -1;
@@ -1367,7 +1372,7 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
     }
 
     // Create the bridge for RTC.
-    SrsRtcBridge *bridge = new SrsRtcBridge();
+    SrsRtcBridge *bridge = new SrsRtcBridge(app_factory_);
 
     // Bridge to RTMP.
     // TODO: Support bridge to RTSP.

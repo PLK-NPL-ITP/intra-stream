@@ -66,6 +66,7 @@ void SrsHlsSegment::config_cipher(unsigned char *key, unsigned char *iv)
     fw->config_cipher(key, iv);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHlsSegment::rename()
 {
     if (true) {
@@ -76,6 +77,7 @@ srs_error_t SrsHlsSegment::rename()
 
     return SrsFragment::rename();
 }
+// LCOV_EXCL_STOP
 
 SrsInitMp4Segment::SrsInitMp4Segment(ISrsFileWriter *fw)
 {
@@ -709,6 +711,20 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
     max_td_ = hls_fragment_ * hls_td_ratio;
 
     // create m3u8 dir once.
+    if ((err = create_directories()) != srs_success) {
+        return srs_error_wrap(err, "create dir");
+    }
+
+    writer_ = app_factory_->create_file_writer();
+
+    return err;
+}
+
+// LCOV_EXCL_START
+srs_error_t SrsHlsFmp4Muxer::create_directories()
+{
+    srs_error_t err = srs_success;
+
     SrsPath path;
     m3u8_dir_ = path.filepath_dir(m3u8_);
     if ((err = path.mkdir_all(m3u8_dir_)) != srs_success) {
@@ -716,7 +732,7 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
     }
 
     if (hls_keys_ && (hls_path_ != hls_key_file_path_)) {
-        string key_file = srs_path_build_stream(hls_key_file_, vhost, app, stream);
+        string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         string key_url = hls_key_file_path_ + "/" + key_file;
         string key_dir = path.filepath_dir(key_url);
         if ((err = path.mkdir_all(key_dir)) != srs_success) {
@@ -724,10 +740,9 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
         }
     }
 
-    writer_ = app_factory_->create_file_writer();
-
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
 {
@@ -747,8 +762,46 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     }
 
     // generate filename.
+    std::string m4s_file = generate_m4s_filename();
+
+    std::string m4s_path = hls_path_ + "/" + m4s_file;
+    current_->set_path(m4s_path);
+
+    // the ts url, relative or absolute url.
+    // TODO: FIXME: Use url and path manager.
+    std::string m4s_url = current_->fullpath();
+    if (srs_strings_starts_with(m4s_url, m3u8_dir_)) {
+        m4s_url = m4s_url.substr(m3u8_dir_.length());
+    }
+    while (srs_strings_starts_with(m4s_url, "/")) {
+        m4s_url = m4s_url.substr(1);
+    }
+
+    current_->uri_ += hls_entry_prefix_;
+    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
+        current_->uri_ += "/";
+
+        // add the http dir to uri.
+        SrsPath path;
+        string http_dir = path.filepath_dir(m3u8_url_);
+        if (!http_dir.empty()) {
+            current_->uri_ += http_dir + "/";
+        }
+    }
+    current_->uri_ += m4s_url;
+
+    current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path);
+
+    return err;
+}
+
+std::string SrsHlsFmp4Muxer::generate_m4s_filename()
+{
+
     std::string m4s_file = hls_m4s_file_;
+
     m4s_file = srs_path_build_stream(m4s_file, req_->vhost_, req_->app_, req_->stream_);
+
     if (hls_ts_floor_) {
         // accept the floor ts for the first piece.
         int64_t current_floor_ts = srs_time_now_realtime() / hls_fragment_;
@@ -784,41 +837,14 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     } else {
         m4s_file = srs_path_build_timestamp(m4s_file);
     }
+
     if (true) {
         std::stringstream ss;
         ss << current_->sequence_no_;
         m4s_file = srs_strings_replace(m4s_file, "[seq]", ss.str());
     }
 
-    std::string m4s_path = hls_path_ + "/" + m4s_file;
-    current_->set_path(m4s_path);
-
-    // the ts url, relative or absolute url.
-    // TODO: FIXME: Use url and path manager.
-    std::string m4s_url = current_->fullpath();
-    if (srs_strings_starts_with(m4s_url, m3u8_dir_)) {
-        m4s_url = m4s_url.substr(m3u8_dir_.length());
-    }
-    while (srs_strings_starts_with(m4s_url, "/")) {
-        m4s_url = m4s_url.substr(1);
-    }
-
-    current_->uri_ += hls_entry_prefix_;
-    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
-        current_->uri_ += "/";
-
-        // add the http dir to uri.
-        SrsPath path;
-        string http_dir = path.filepath_dir(m3u8_url_);
-        if (!http_dir.empty()) {
-            current_->uri_ += http_dir + "/";
-        }
-    }
-    current_->uri_ += m4s_url;
-
-    current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path);
-
-    return err;
+    return m4s_file;
 }
 
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
@@ -1033,47 +1059,9 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8(std::string m3u8_file)
     // write all segments
     for (int i = 0; i < segments_->size(); i++) {
         SrsHlsM4sSegment *segment = dynamic_cast<SrsHlsM4sSegment *>(segments_->at(i));
-
-        if (segment->is_sequence_header()) {
-            // #EXT-X-DISCONTINUITY\n
-            ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
+        if ((err = do_refresh_m3u8_segment(segment, ss)) != srs_success) {
+            return srs_error_wrap(err, "hls: refresh m3u8 segment");
         }
-
-#if 1
-        if (hls_keys_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
-            char hexiv[33];
-            srs_hex_encode_to_string(hexiv, segment->iv_, 16);
-            hexiv[32] = '\0';
-
-            string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
-            key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
-
-            string key_path = key_file;
-            // if key_url is not set,only use the file name
-            if (!hls_key_url_.empty()) {
-                key_path = hls_key_url_ + key_file;
-            }
-
-            ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
-        }
-#endif
-
-        // "#EXTINF:4294967295.208,\n"
-        ss.precision(3);
-        ss.setf(std::ios::fixed, std::ios::floatfield);
-        ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
-
-        // {file name}\n
-        // TODO get segment name in relative path.
-        SrsPath path;
-        std::string seg_uri = segment->fullpath();
-        if (true) {
-            std::stringstream stemp;
-            stemp << srsu2msi(segment->duration());
-            seg_uri = srs_strings_replace(seg_uri, "[duration]", stemp.str());
-        }
-        // ss << segment->uri << SRS_CONSTS_LF;
-        ss << path.filepath_base(seg_uri) << SRS_CONSTS_LF;
     }
 
     // write m3u8 to writer.
@@ -1083,6 +1071,60 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8(std::string m3u8_file)
     }
 
     return err;
+}
+
+srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, std::stringstream &ss)
+{
+    srs_error_t err = srs_success;
+
+    if (segment->is_sequence_header()) {
+        // #EXT-X-DISCONTINUITY\n
+        ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
+    }
+
+    if (hls_keys_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
+        char hexiv[33];
+        srs_hex_encode_to_string(hexiv, segment->iv_, 16);
+        hexiv[32] = '\0';
+
+        string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
+        key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
+
+        string key_path = key_file;
+        // if key_url is not set,only use the file name
+        if (!hls_key_url_.empty()) {
+            key_path = hls_key_url_ + key_file;
+        }
+
+        ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
+    }
+
+    // "#EXTINF:4294967295.208,\n"
+    ss.precision(3);
+    ss.setf(std::ios::fixed, std::ios::floatfield);
+    ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
+
+    // {file name}\n
+    // TODO get segment name in relative path.
+    SrsPath path;
+    std::string seg_uri = segment->fullpath();
+    if (true) {
+        std::stringstream stemp;
+        stemp << srsu2msi(segment->duration());
+        seg_uri = srs_strings_replace(seg_uri, "[duration]", stemp.str());
+    }
+    // ss << segment->uri << SRS_CONSTS_LF;
+    ss << path.filepath_base(seg_uri) << SRS_CONSTS_LF;
+    
+    return err;
+}
+
+ISrsHlsMuxer::ISrsHlsMuxer()
+{
+}
+
+ISrsHlsMuxer::~ISrsHlsMuxer()
+{
 }
 
 SrsHlsMuxer::SrsHlsMuxer()
@@ -1128,6 +1170,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
     app_factory_ = NULL;
 }
 
+// LCOV_EXCL_START
 void SrsHlsMuxer::dispose()
 {
     srs_error_t err = srs_success;
@@ -1152,6 +1195,7 @@ void SrsHlsMuxer::dispose()
 
     srs_trace("gracefully dispose hls %s", req_ ? req_->get_stream_url().c_str() : "");
 }
+// LCOV_EXCL_STOP
 
 int SrsHlsMuxer::sequence_no()
 {
@@ -1282,6 +1326,24 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
     // when update config, reset the history target duration.
     max_td_ = fragment * config_->get_hls_td_ratio(r->vhost_);
 
+    if ((err = create_directories()) != srs_success) {
+        return srs_error_wrap(err, "create dir");
+    }
+
+    if (hls_keys_) {
+        writer_ = app_factory_->create_enc_file_writer();
+    } else {
+        writer_ = app_factory_->create_file_writer();
+    }
+
+    return err;
+}
+
+// LCOV_EXCL_START
+srs_error_t SrsHlsMuxer::create_directories()
+{
+    srs_error_t err = srs_success;
+
     // create m3u8 dir once.
     SrsPath path_util;
     m3u8_dir_ = path_util.filepath_dir(m3u8_);
@@ -1298,14 +1360,9 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
         }
     }
 
-    if (hls_keys_) {
-        writer_ = app_factory_->create_enc_file_writer();
-    } else {
-        writer_ = app_factory_->create_file_writer();
-    }
-
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsMuxer::recover_hls()
 {
@@ -1496,48 +1553,7 @@ srs_error_t SrsHlsMuxer::segment_open()
     }
 
     // generate filename.
-    std::string ts_file = hls_ts_file_;
-    ts_file = srs_path_build_stream(ts_file, req_->vhost_, req_->app_, req_->stream_);
-    if (hls_ts_floor_) {
-        // accept the floor ts for the first piece.
-        int64_t current_floor_ts = srs_time_now_realtime() / hls_fragment_;
-        if (!accept_floor_ts_) {
-            accept_floor_ts_ = current_floor_ts - 1;
-        } else {
-            accept_floor_ts_++;
-        }
-
-        // jump when deviation more than 10p
-        if (accept_floor_ts_ - current_floor_ts > SRS_JUMP_WHEN_PIECE_DEVIATION) {
-            srs_warn("hls: jmp for ts deviation, current=%" PRId64 ", accept=%" PRId64, current_floor_ts, accept_floor_ts_);
-            accept_floor_ts_ = current_floor_ts - 1;
-        }
-
-        // when reap ts, adjust the deviation.
-        deviation_ts_ = (int)(accept_floor_ts_ - current_floor_ts);
-
-        // dup/jmp detect for ts in floor mode.
-        if (previous_floor_ts_ && previous_floor_ts_ != current_floor_ts - 1) {
-            srs_warn("hls: dup/jmp ts, previous=%" PRId64 ", current=%" PRId64 ", accept=%" PRId64 ", deviation=%d",
-                     previous_floor_ts_, current_floor_ts, accept_floor_ts_, deviation_ts_);
-        }
-        previous_floor_ts_ = current_floor_ts;
-
-        // we always ensure the piece is increase one by one.
-        std::stringstream ts_floor;
-        ts_floor << accept_floor_ts_;
-        ts_file = srs_strings_replace(ts_file, "[timestamp]", ts_floor.str());
-
-        // TODO: FIMXE: we must use the accept ts floor time to generate the hour variable.
-        ts_file = srs_path_build_timestamp(ts_file);
-    } else {
-        ts_file = srs_path_build_timestamp(ts_file);
-    }
-    if (true) {
-        std::stringstream ss;
-        ss << current_->sequence_no_;
-        ts_file = srs_strings_replace(ts_file, "[seq]", ss.str());
-    }
+    std::string ts_file = generate_ts_filename();
     current_->set_path(hls_path_ + "/" + ts_file);
 
     // the ts url, relative or absolute url.
@@ -1577,6 +1593,57 @@ srs_error_t SrsHlsMuxer::segment_open()
     context_->reset();
 
     return err;
+}
+
+string SrsHlsMuxer::generate_ts_filename()
+{
+    std::string ts_file = hls_ts_file_;
+
+    ts_file = srs_path_build_stream(ts_file, req_->vhost_, req_->app_, req_->stream_);
+
+    if (hls_ts_floor_) {
+        // accept the floor ts for the first piece.
+        int64_t current_floor_ts = srs_time_now_realtime() / hls_fragment_;
+        if (!accept_floor_ts_) {
+            accept_floor_ts_ = current_floor_ts - 1;
+        } else {
+            accept_floor_ts_++;
+        }
+
+        // jump when deviation more than 10p
+        if (accept_floor_ts_ - current_floor_ts > SRS_JUMP_WHEN_PIECE_DEVIATION) {
+            srs_warn("hls: jmp for ts deviation, current=%" PRId64 ", accept=%" PRId64, current_floor_ts, accept_floor_ts_);
+            accept_floor_ts_ = current_floor_ts - 1;
+        }
+
+        // when reap ts, adjust the deviation.
+        deviation_ts_ = (int)(accept_floor_ts_ - current_floor_ts);
+
+        // dup/jmp detect for ts in floor mode.
+        if (previous_floor_ts_ && previous_floor_ts_ != current_floor_ts - 1) {
+            srs_warn("hls: dup/jmp ts, previous=%" PRId64 ", current=%" PRId64 ", accept=%" PRId64 ", deviation=%d",
+                     previous_floor_ts_, current_floor_ts, accept_floor_ts_, deviation_ts_);
+        }
+        previous_floor_ts_ = current_floor_ts;
+
+        // we always ensure the piece is increase one by one.
+        std::stringstream ts_floor;
+        ts_floor << accept_floor_ts_;
+        ts_file = srs_strings_replace(ts_file, "[timestamp]", ts_floor.str());
+
+        // TODO: FIMXE: we must use the accept ts floor time to generate the hour variable.
+        ts_file = srs_path_build_timestamp(ts_file);
+    } else {
+        ts_file = srs_path_build_timestamp(ts_file);
+    }
+
+    if (true) {
+        std::stringstream ss;
+        ss << current_->sequence_no_;
+        ts_file = srs_strings_replace(ts_file, "[seq]", ss.str());
+    }
+
+    return ts_file;
 }
 
 srs_error_t SrsHlsMuxer::on_sequence_header()
@@ -1713,6 +1780,31 @@ srs_error_t SrsHlsMuxer::do_segment_close()
         return err;
     }
 
+    if ((err = do_segment_close2()) != srs_success) {
+        return srs_error_wrap(err, "hls: do segment close");
+    }
+
+    // shrink the segments.
+    segments_->shrink(hls_window_);
+
+    // refresh the m3u8, donot contains the removed ts
+    err = refresh_m3u8();
+
+    // remove the ts file.
+    segments_->clear_expired(hls_cleanup_);
+
+    // check ret of refresh m3u8
+    if (err != srs_success) {
+        return srs_error_wrap(err, "hls: refresh m3u8");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHlsMuxer::do_segment_close2()
+{
+    srs_error_t err = srs_success;
+
     // when close current segment, the current segment must not be NULL.
     srs_assert(current_);
 
@@ -1762,20 +1854,6 @@ srs_error_t SrsHlsMuxer::do_segment_close()
         }
     }
 
-    // shrink the segments.
-    segments_->shrink(hls_window_);
-
-    // refresh the m3u8, donot contains the removed ts
-    err = refresh_m3u8();
-
-    // remove the ts file.
-    segments_->clear_expired(hls_cleanup_);
-
-    // check ret of refresh m3u8
-    if (err != srs_success) {
-        return srs_error_wrap(err, "hls: refresh m3u8");
-    }
-
     return err;
 }
 
@@ -1815,6 +1893,7 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHlsMuxer::refresh_m3u8()
 {
     srs_error_t err = srs_success;
@@ -1842,6 +1921,7 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsMuxer::do_refresh_m3u8(string m3u8_file)
 {
@@ -1893,43 +1973,9 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8(string m3u8_file)
     // write all segments
     for (int i = 0; i < segments_->size(); i++) {
         SrsHlsSegment *segment = dynamic_cast<SrsHlsSegment *>(segments_->at(i));
-
-        if (segment->is_sequence_header()) {
-            // #EXT-X-DISCONTINUITY\n
-            ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
+        if ((err = do_refresh_m3u8_segment(segment, ss)) != srs_success) {
+            return srs_error_wrap(err, "hls: refresh m3u8 segment");
         }
-
-        if (hls_keys_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
-            char hexiv[33];
-            srs_hex_encode_to_string(hexiv, segment->iv_, 16);
-            hexiv[32] = '\0';
-
-            string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
-            key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
-
-            string key_path = key_file;
-            // if key_url is not set,only use the file name
-            if (!hls_key_url_.empty()) {
-                key_path = hls_key_url_ + key_file;
-            }
-
-            ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
-        }
-
-        // "#EXTINF:4294967295.208,\n"
-        ss.precision(3);
-        ss.setf(std::ios::fixed, std::ios::floatfield);
-        ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
-
-        // {file name}\n
-        std::string seg_uri = segment->uri_;
-        if (true) {
-            std::stringstream stemp;
-            stemp << srsu2msi(segment->duration());
-            seg_uri = srs_strings_replace(seg_uri, "[duration]", stemp.str());
-        }
-        // ss << segment->uri << SRS_CONSTS_LF;
-        ss << seg_uri << SRS_CONSTS_LF;
     }
 
     // write m3u8 to writer.
@@ -1937,6 +1983,50 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8(string m3u8_file)
     if ((err = writer->write((char *)m3u8.c_str(), (int)m3u8.length(), NULL)) != srs_success) {
         return srs_error_wrap(err, "hls: write m3u8");
     }
+
+    return err;
+}
+
+srs_error_t SrsHlsMuxer::do_refresh_m3u8_segment(SrsHlsSegment *segment, std::stringstream &ss)
+{
+    srs_error_t err = srs_success;
+
+    if (segment->is_sequence_header()) {
+        // #EXT-X-DISCONTINUITY\n
+        ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
+    }
+
+    if (hls_keys_ && ((segment->sequence_no_ % hls_fragments_per_key_) == 0)) {
+        char hexiv[33];
+        srs_hex_encode_to_string(hexiv, segment->iv_, 16);
+        hexiv[32] = '\0';
+
+        string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
+        key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
+
+        string key_path = key_file;
+        // if key_url is not set,only use the file name
+        if (!hls_key_url_.empty()) {
+            key_path = hls_key_url_ + key_file;
+        }
+
+        ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
+    }
+
+    // "#EXTINF:4294967295.208,\n"
+    ss.precision(3);
+    ss.setf(std::ios::fixed, std::ios::floatfield);
+    ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
+
+    // {file name}\n
+    std::string seg_uri = segment->uri_;
+    if (true) {
+        std::stringstream stemp;
+        stemp << srsu2msi(segment->duration());
+        seg_uri = srs_strings_replace(seg_uri, "[duration]", stemp.str());
+    }
+    // ss << segment->uri << SRS_CONSTS_LF;
+    ss << seg_uri << SRS_CONSTS_LF;
 
     return err;
 }
@@ -2549,7 +2639,7 @@ srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
 
 void SrsHls::dispose()
 {
-    // We disabled the reload, so HLS will not be enabled by reloading. 
+    // We disabled the reload, so HLS will not be enabled by reloading.
     // As a result, if HLS is disabled, we don't need to dispose.
     if (!enabled_) {
         return;

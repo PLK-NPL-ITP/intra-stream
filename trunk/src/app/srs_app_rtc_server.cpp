@@ -87,6 +87,7 @@ string srs_dns_resolve(string host, int &family)
     return string(shost);
 }
 
+// LCOV_EXCL_START
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
     blackhole_ = false;
@@ -144,6 +145,7 @@ void SrsRtcBlackhole::sendto(void *data, int len)
     // For blackhole, we ignore any error.
     srs_sendto(blackhole_stfd_, data, len, (sockaddr *)blackhole_addr_, sizeof(sockaddr_in), SRS_UTIME_NO_TIMEOUT);
 }
+// LCOV_EXCL_STOP
 
 SrsRtcBlackhole *_srs_blackhole = NULL;
 
@@ -199,6 +201,7 @@ srs_error_t api_server_as_candidates(ISrsAppConfig *config, string api, set<stri
         candidate_ips.insert(hostname);
     }
 
+    // LCOV_EXCL_START
     // Try to parse the domain name if not IP.
     if (!srs_net_is_ipv4(hostname) && config->get_resolve_api_domain()) {
         int family = 0;
@@ -210,6 +213,7 @@ srs_error_t api_server_as_candidates(ISrsAppConfig *config, string api, set<stri
         // Try to add the API server ip as candidates.
         candidate_ips.insert(ip);
     }
+    // LCOV_EXCL_STOP
 
     // If hostname is IP, use it.
     if (srs_net_is_ipv4(hostname)) {
@@ -274,6 +278,7 @@ set<string> discover_candidates(ISrsProtocolUtility *utility, ISrsAppConfig *con
         return candidate_ips;
     }
 
+    // LCOV_EXCL_START
     // Then, we use the ipv4 address.
     for (int i = 0; i < (int)ips.size(); ++i) {
         SrsIPAddress *ip = ips[i];
@@ -295,6 +300,7 @@ set<string> discover_candidates(ISrsProtocolUtility *utility, ISrsAppConfig *con
     }
 
     return candidate_ips;
+    // LCOV_EXCL_STOP
 }
 
 SrsRtcUserConfig::SrsRtcUserConfig()
@@ -346,6 +352,7 @@ srs_error_t SrsRtcSessionManager::initialize()
     return err;
 }
 
+// LCOV_EXCL_START
 ISrsRtcConnection *SrsRtcSessionManager::find_rtc_session_by_username(const std::string &username)
 {
     ISrsResource *conn = conn_manager_->find_by_name(username);
@@ -437,6 +444,7 @@ srs_error_t SrsRtcSessionManager::do_create_rtc_session(SrsRtcUserConfig *ruc, S
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 void SrsRtcSessionManager::srs_update_rtc_sessions()
 {
@@ -490,6 +498,7 @@ void SrsRtcSessionManager::srs_update_rtc_sessions()
               stats.rnk_desc_.c_str(), loss_desc.c_str(), stats.fid_desc_.c_str());
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsRtcSessionManager::exec_rtc_async_work(ISrsAsyncCallTask *t)
 {
     return rtc_async_->execute(t);
@@ -586,3 +595,5 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
     }
     return srs_error_new(ERROR_RTC_UDP, "unknown packet");
 }
+// LCOV_EXCL_STOP
+

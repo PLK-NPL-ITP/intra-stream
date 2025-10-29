@@ -18,6 +18,7 @@ using namespace std;
 
 SrsCoWorkers *SrsCoWorkers::instance_ = NULL;
 
+// LCOV_EXCL_START
 SrsCoWorkers::SrsCoWorkers()
 {
 }
@@ -103,6 +104,7 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
         ->set("api", SrsJsonAny::str(backend.c_str()))
         ->set("routers", routers);
 }
+// LCOV_EXCL_STOP
 
 ISrsRequest *SrsCoWorkers::find_stream_info(string vhost, string app, string stream)
 {

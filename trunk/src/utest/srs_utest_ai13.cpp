@@ -1102,22 +1102,26 @@ VOID TEST(AppHlsTest, HlsControllerWriteAudioTypicalScenario)
     // Create mock request
     MockHlsRequest mock_request("__defaultVhost__", "live", "test");
 
+    // Cast to concrete type to access private members for testing
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    srs_assert(muxer);
+
     // Set up muxer with required fields
-    controller->muxer_->req_ = &mock_request;
-    controller->muxer_->hls_fragment_ = 10 * SRS_UTIME_SECONDS;
-    controller->muxer_->hls_aof_ratio_ = 2.0;
-    controller->muxer_->hls_wait_keyframe_ = true;
-    controller->muxer_->hls_ts_floor_ = false;
-    controller->muxer_->deviation_ts_ = 0;
-    controller->muxer_->max_td_ = 10 * SRS_UTIME_SECONDS;
-    controller->muxer_->latest_acodec_ = SrsAudioCodecIdAAC;
-    controller->muxer_->latest_vcodec_ = SrsVideoCodecIdDisabled; // Pure audio mode
-    controller->muxer_->writer_ = new MockSrsFileWriter();
-    controller->muxer_->context_ = new SrsTsContext();
+    muxer->req_ = &mock_request;
+    muxer->hls_fragment_ = 10 * SRS_UTIME_SECONDS;
+    muxer->hls_aof_ratio_ = 2.0;
+    muxer->hls_wait_keyframe_ = true;
+    muxer->hls_ts_floor_ = false;
+    muxer->deviation_ts_ = 0;
+    muxer->max_td_ = 10 * SRS_UTIME_SECONDS;
+    muxer->latest_acodec_ = SrsAudioCodecIdAAC;
+    muxer->latest_vcodec_ = SrsVideoCodecIdDisabled; // Pure audio mode
+    muxer->writer_ = new MockSrsFileWriter();
+    muxer->context_ = new SrsTsContext();
 
     // Create a segment
-    SrsHlsSegment *segment = new SrsHlsSegment(controller->muxer_->context_, SrsAudioCodecIdAAC, SrsVideoCodecIdDisabled, new MockSrsFileWriter());
-    controller->muxer_->current_ = segment;
+    SrsHlsSegment *segment = new SrsHlsSegment(muxer->context_, SrsAudioCodecIdAAC, SrsVideoCodecIdDisabled, new MockSrsFileWriter());
+    muxer->current_ = segment;
     segment->append(0);
 
     // Create SrsFormat with AAC audio codec
@@ -1197,11 +1201,11 @@ VOID TEST(AppHlsTest, HlsControllerWriteAudioTypicalScenario)
     EXPECT_GT(controller->aac_samples_, 1024);
 
     // Clean up
-    controller->muxer_->req_ = NULL;
-    controller->muxer_->current_ = NULL;
+    muxer->req_ = NULL;
+    muxer->current_ = NULL;
     srs_freep(segment);
-    srs_freep(controller->muxer_->writer_);
-    srs_freep(controller->muxer_->context_);
+    srs_freep(muxer->writer_);
+    srs_freep(muxer->context_);
 }
 
 // Unit test for SrsHlsMuxer::flush_video typical scenario
@@ -1414,6 +1418,10 @@ VOID TEST(AppHlsTest, HlsControllerSelectionTypicalScenario)
     // Initialize the controller
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
+    // Cast to concrete type to access private members for testing
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    srs_assert(muxer);
+
     // Test initial state - no current segment
     // sequence_no() should return 0
     EXPECT_EQ(0, controller->sequence_no());
@@ -1439,8 +1447,8 @@ VOID TEST(AppHlsTest, HlsControllerSelectionTypicalScenario)
     segment->append(10000); // 10 seconds duration in milliseconds
 
     // Set the current segment in the muxer
-    controller->muxer_->current_ = segment;
-    controller->muxer_->sequence_no_ = 42;
+    muxer->current_ = segment;
+    muxer->sequence_no_ = 42;
 
     // Test selection code with current segment
     // sequence_no() should return the muxer's sequence number
@@ -1456,14 +1464,14 @@ VOID TEST(AppHlsTest, HlsControllerSelectionTypicalScenario)
     EXPECT_EQ(0, controller->deviation());
 
     // Test deviation with hls_ts_floor enabled
-    controller->muxer_->hls_ts_floor_ = true;
-    controller->muxer_->deviation_ts_ = 5;
+    muxer->hls_ts_floor_ = true;
+    muxer->deviation_ts_ = 5;
 
     // deviation() should return the deviation value when hls_ts_floor is true
     EXPECT_EQ(5, controller->deviation());
 
     // Clean up
-    controller->muxer_->current_ = NULL;
+    muxer->current_ = NULL;
 }
 
 // Unit test for SrsHlsController::on_publish typical scenario
@@ -1481,6 +1489,10 @@ VOID TEST(AppHlsTest, HlsControllerOnPublishTypicalScenario)
     // Initialize the controller
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
+    // Cast to concrete type to access private members for testing
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    srs_assert(muxer);
+
     // Create mock request
     MockHlsRequest mock_request("test.vhost", "live", "stream1");
 
@@ -1489,47 +1501,47 @@ VOID TEST(AppHlsTest, HlsControllerOnPublishTypicalScenario)
 
     // Verify that muxer was configured properly
     // Check that muxer's request was set
-    EXPECT_TRUE(controller->muxer_->req_ != NULL);
-    EXPECT_EQ("test.vhost", controller->muxer_->req_->vhost_);
-    EXPECT_EQ("live", controller->muxer_->req_->app_);
-    EXPECT_EQ("stream1", controller->muxer_->req_->stream_);
+    EXPECT_TRUE(muxer->req_ != NULL);
+    EXPECT_EQ("test.vhost", muxer->req_->vhost_);
+    EXPECT_EQ("live", muxer->req_->app_);
+    EXPECT_EQ("stream1", muxer->req_->stream_);
 
     // Verify HLS configuration was applied to muxer
     // Fragment should be 10 seconds (from MockAppConfig default)
-    EXPECT_EQ(10 * SRS_UTIME_SECONDS, controller->muxer_->hls_fragment_);
+    EXPECT_EQ(10 * SRS_UTIME_SECONDS, muxer->hls_fragment_);
 
     // Window should be 60 seconds (from MockAppConfig default)
-    EXPECT_EQ(60 * SRS_UTIME_SECONDS, controller->muxer_->hls_window_);
+    EXPECT_EQ(60 * SRS_UTIME_SECONDS, muxer->hls_window_);
 
     // Path should be "./objs/nginx/html" (from MockAppConfig default)
-    EXPECT_EQ("./objs/nginx/html", controller->muxer_->hls_path_);
+    EXPECT_EQ("./objs/nginx/html", muxer->hls_path_);
 
     // TS file should be "[app]/[stream]-[seq].ts" (from MockAppConfig default)
-    EXPECT_EQ("[app]/[stream]-[seq].ts", controller->muxer_->hls_ts_file_);
+    EXPECT_EQ("[app]/[stream]-[seq].ts", muxer->hls_ts_file_);
 
     // AOF ratio should be 2.0 (from MockAppConfig default)
-    EXPECT_EQ(2.0, controller->muxer_->hls_aof_ratio_);
+    EXPECT_EQ(2.0, muxer->hls_aof_ratio_);
 
     // Cleanup should be true (from MockAppConfig default)
-    EXPECT_TRUE(controller->muxer_->hls_cleanup_);
+    EXPECT_TRUE(muxer->hls_cleanup_);
 
     // Wait keyframe should be true (from MockAppConfig default)
-    EXPECT_TRUE(controller->muxer_->hls_wait_keyframe_);
+    EXPECT_TRUE(muxer->hls_wait_keyframe_);
 
     // TS floor should be false (from MockAppConfig default)
-    EXPECT_FALSE(controller->muxer_->hls_ts_floor_);
+    EXPECT_FALSE(muxer->hls_ts_floor_);
 
     // Keys should be false (from MockAppConfig default)
-    EXPECT_FALSE(controller->muxer_->hls_keys_);
+    EXPECT_FALSE(muxer->hls_keys_);
 
     // Fragments per key should be 5 (from MockAppConfig default)
-    EXPECT_EQ(5, controller->muxer_->hls_fragments_per_key_);
+    EXPECT_EQ(5, muxer->hls_fragments_per_key_);
 
     // Verify hls_dts_directly was set from config
     EXPECT_TRUE(controller->hls_dts_directly_);
 
     // Verify that a segment was opened
-    EXPECT_TRUE(controller->muxer_->current_ != NULL);
+    EXPECT_TRUE(muxer->current_ != NULL);
 }
 
 // Unit test for SrsHlsController::on_unpublish typical scenario
@@ -1547,6 +1559,10 @@ VOID TEST(AppHlsTest, HlsControllerOnUnpublishTypicalScenario)
     // Initialize the controller
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
+    // Cast to concrete type to access private members for testing
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    srs_assert(muxer);
+
     // Create mock request
     MockHlsRequest mock_request("test.vhost", "live", "stream1");
 
@@ -1554,7 +1570,7 @@ VOID TEST(AppHlsTest, HlsControllerOnUnpublishTypicalScenario)
     HELPER_EXPECT_SUCCESS(controller->on_publish(&mock_request));
 
     // Verify that a segment was opened
-    EXPECT_TRUE(controller->muxer_->current_ != NULL);
+    EXPECT_TRUE(muxer->current_ != NULL);
 
     // Set the codec in the muxer to enable proper audio/video handling
     controller->muxer_->set_latest_acodec(SrsAudioCodecIdAAC);
@@ -1581,7 +1597,7 @@ VOID TEST(AppHlsTest, HlsControllerOnUnpublishTypicalScenario)
     EXPECT_TRUE(controller->tsmc_->audio_ == NULL);
 
     // Verify that the segment was closed (current_ should be NULL after close)
-    EXPECT_TRUE(controller->muxer_->current_ == NULL);
+    EXPECT_TRUE(muxer->current_ == NULL);
 }
 
 // Unit test for SrsHlsController::write_video typical scenario
@@ -1599,6 +1615,10 @@ VOID TEST(AppHlsTest, HlsControllerWriteVideoTypicalScenario)
     // Initialize the controller
     HELPER_EXPECT_SUCCESS(controller->initialize());
 
+    // Cast to concrete type to access private members for testing
+    SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer*>(controller->muxer_);
+    srs_assert(muxer);
+
     // Create mock request
     MockHlsRequest mock_request("test.vhost", "live", "stream1");
 
@@ -1606,7 +1626,7 @@ VOID TEST(AppHlsTest, HlsControllerWriteVideoTypicalScenario)
     HELPER_EXPECT_SUCCESS(controller->on_publish(&mock_request));
 
     // Verify that a segment was opened
-    EXPECT_TRUE(controller->muxer_->current_ != NULL);
+    EXPECT_TRUE(muxer->current_ != NULL);
 
     // Create a mock SrsFormat with video codec
     SrsUniquePtr<SrsFormat> format(new SrsFormat());
@@ -1649,10 +1669,10 @@ VOID TEST(AppHlsTest, HlsControllerWriteVideoTypicalScenario)
     EXPECT_TRUE(controller->tsmc_->video_ == NULL);
 
     // Verify that the segment is still open (not reaped yet, since segment is not overflow)
-    EXPECT_TRUE(controller->muxer_->current_ != NULL);
+    EXPECT_TRUE(muxer->current_ != NULL);
 
     // Verify that the codec was set correctly
-    EXPECT_EQ(SrsVideoCodecIdAVC, controller->muxer_->latest_vcodec());
+    EXPECT_EQ(SrsVideoCodecIdAVC, muxer->latest_vcodec());
 }
 
 // Unit test for SrsHlsController::reap_segment typical scenario

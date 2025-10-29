@@ -180,6 +180,10 @@ MockRtcTrackDescriptionFactory::MockRtcTrackDescriptionFactory()
     audio_ssrc_ = 12345;
     video_ssrc_ = 67890;
     screen_ssrc_ = 98765;
+
+    audio_pt_ = 111;
+    video_pt_ = 96;
+    screen_pt_ = 97;
 }
 
 MockRtcTrackDescriptionFactory::~MockRtcTrackDescriptionFactory()
@@ -227,12 +231,17 @@ SrsRtcTrackDescription *MockRtcTrackDescriptionFactory::create_audio_track(uint3
     audio_desc->is_active_ = true;
     audio_desc->direction_ = "sendrecv";
     audio_desc->mid_ = mid;
-    audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    audio_desc->media_ = new SrsAudioPayload(audio_pt_, "opus", 48000, 2);
     return audio_desc;
 }
 
 SrsRtcTrackDescription *MockRtcTrackDescriptionFactory::create_video_track(uint32_t ssrc, std::string id, std::string mid)
 {
+    uint8_t pt = video_pt_;
+    if (ssrc == screen_ssrc_) {
+        pt = screen_pt_;
+    }
+
     SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
     video_desc->type_ = "video";
     video_desc->ssrc_ = ssrc;
@@ -240,7 +249,7 @@ SrsRtcTrackDescription *MockRtcTrackDescriptionFactory::create_video_track(uint3
     video_desc->is_active_ = true;
     video_desc->direction_ = "sendrecv";
     video_desc->mid_ = mid;
-    video_desc->media_ = new SrsVideoPayload(96, "H264", 90000);
+    video_desc->media_ = new SrsVideoPayload(pt, "H264", 90000);
     return video_desc;
 }
 
@@ -294,6 +303,21 @@ ISrsRequest *MockRtcAsyncCallRequest::as_http()
     return this;
 }
 
+MockRtcSource::MockRtcSource()
+{
+    on_rtp_count_ = 0;
+}
+
+MockRtcSource::~MockRtcSource()
+{
+}
+
+srs_error_t MockRtcSource::on_rtp(SrsRtpPacket *pkt)
+{
+    on_rtp_count_++;
+    return SrsRtcSource::on_rtp(pkt);
+}
+
 // MockRtcSourceManager implementation
 MockRtcSourceManager::MockRtcSourceManager()
 {
@@ -301,7 +325,7 @@ MockRtcSourceManager::MockRtcSourceManager()
     fetch_or_create_error_ = srs_success;
     initialize_count_ = 0;
     fetch_or_create_count_ = 0;
-    mock_source_ = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
+    mock_source_ = SrsSharedPtr<SrsRtcSource>(new MockRtcSource());
 }
 
 MockRtcSourceManager::~MockRtcSourceManager()
@@ -523,485 +547,6 @@ void MockRtcPacketSender::set_send_packet_error(srs_error_t err)
     send_packet_error_ = err;
 }
 
-// MockAppConfig implementation
-MockAppConfig::MockAppConfig()
-{
-    http_hooks_enabled_ = true;
-    on_stop_directive_ = NULL;
-    on_unpublish_directive_ = NULL;
-    rtc_nack_enabled_ = true;
-    rtc_nack_no_copy_ = false;
-    rtc_drop_for_pt_ = 0;
-    rtc_twcc_enabled_ = true;
-    srt_enabled_ = false;
-    rtc_to_rtmp_ = false;
-    dash_dispose_ = 0;
-    dash_enabled_ = false;
-    api_as_candidates_ = true;
-    resolve_api_domain_ = true;
-    keep_api_domain_ = false;
-    mw_msgs_ = 8;
-    mw_sleep_ = 350 * SRS_UTIME_MILLISECONDS;
-    rtc_dtls_role_ = "passive";
-    default_vhost_ = NULL;
-    srt_to_rtmp_ = true;
-    rtc_from_rtmp_ = false;
-    forwards_directive_ = NULL;
-    backend_directive_ = NULL;
-}
-
-MockAppConfig::~MockAppConfig()
-{
-    clear_on_stop_directive();
-    clear_on_unpublish_directive();
-
-    srs_freep(default_vhost_);
-    srs_freep(forwards_directive_);
-    srs_freep(backend_directive_);
-}
-
-void MockAppConfig::set_forward_destinations(const std::vector<std::string> &destinations)
-{
-    srs_freep(forwards_directive_);
-
-    if (!destinations.empty()) {
-        forwards_directive_ = new SrsConfDirective();
-        forwards_directive_->name_ = "destination";
-        forwards_directive_->args_ = destinations;
-    }
-}
-
-void MockAppConfig::set_forward_backend(const std::string &backend_url)
-{
-    srs_freep(backend_directive_);
-
-    if (!backend_url.empty()) {
-        backend_directive_ = new SrsConfDirective();
-        backend_directive_->name_ = "backend";
-        backend_directive_->args_.push_back(backend_url);
-    }
-}
-
-srs_utime_t MockAppConfig::get_pithy_print()
-{
-    return 10 * SRS_UTIME_SECONDS;
-}
-
-std::string MockAppConfig::get_default_app_name()
-{
-    return "live";
-}
-
-void MockAppConfig::subscribe(ISrsReloadHandler *handler)
-{
-    // Do nothing in mock
-}
-
-void MockAppConfig::unsubscribe(ISrsReloadHandler *handler)
-{
-    // Do nothing in mock
-}
-
-bool MockAppConfig::get_vhost_http_hooks_enabled(std::string vhost)
-{
-    return http_hooks_enabled_;
-}
-
-SrsConfDirective *MockAppConfig::get_vhost_on_stop(std::string vhost)
-{
-    return on_stop_directive_;
-}
-
-SrsConfDirective *MockAppConfig::get_vhost_on_unpublish(std::string vhost)
-{
-    return on_unpublish_directive_;
-}
-
-SrsConfDirective *MockAppConfig::get_vhost_on_dvr(std::string vhost)
-{
-    return NULL;
-}
-
-bool MockAppConfig::get_rtc_nack_enabled(std::string vhost)
-{
-    return rtc_nack_enabled_;
-}
-
-bool MockAppConfig::get_rtc_nack_no_copy(std::string vhost)
-{
-    return rtc_nack_no_copy_;
-}
-
-bool MockAppConfig::get_realtime_enabled(std::string vhost, bool is_rtc)
-{
-    return true;
-}
-
-int MockAppConfig::get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc)
-{
-    return mw_msgs_;
-}
-
-int MockAppConfig::get_rtc_drop_for_pt(std::string vhost)
-{
-    return rtc_drop_for_pt_;
-}
-
-bool MockAppConfig::get_rtc_twcc_enabled(std::string vhost)
-{
-    return rtc_twcc_enabled_;
-}
-
-bool MockAppConfig::get_srt_enabled()
-{
-    return srt_enabled_;
-}
-
-bool MockAppConfig::get_srt_enabled(std::string vhost)
-{
-    return srt_enabled_;
-}
-
-std::string MockAppConfig::get_srt_default_streamid()
-{
-    return "#!::r=live/livestream,m=request";
-}
-
-bool MockAppConfig::get_srt_to_rtmp(std::string vhost)
-{
-    return srt_to_rtmp_;
-}
-
-bool MockAppConfig::get_rtc_to_rtmp(std::string vhost)
-{
-    return rtc_to_rtmp_;
-}
-
-srs_utime_t MockAppConfig::get_rtc_stun_timeout(std::string vhost)
-{
-    return 30 * SRS_UTIME_SECONDS;
-}
-
-bool MockAppConfig::get_rtc_stun_strict_check(std::string vhost)
-{
-    return false;
-}
-
-std::string MockAppConfig::get_rtc_dtls_role(std::string vhost)
-{
-    return rtc_dtls_role_;
-}
-
-std::string MockAppConfig::get_rtc_dtls_version(std::string vhost)
-{
-    return "auto";
-}
-
-SrsConfDirective *MockAppConfig::get_vhost_on_hls(std::string vhost)
-{
-    return NULL;
-}
-
-SrsConfDirective *MockAppConfig::get_vhost_on_hls_notify(std::string vhost)
-{
-    return NULL;
-}
-
-bool MockAppConfig::get_hls_enabled(std::string vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::get_hls_enabled(SrsConfDirective *vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::get_hls_use_fmp4(std::string vhost)
-{
-    return false;
-}
-
-std::string MockAppConfig::get_hls_entry_prefix(std::string vhost)
-{
-    return "";
-}
-
-std::string MockAppConfig::get_hls_path(std::string vhost)
-{
-    return "./objs/nginx/html";
-}
-
-std::string MockAppConfig::get_hls_m3u8_file(std::string vhost)
-{
-    return "[app]/[stream].m3u8";
-}
-
-std::string MockAppConfig::get_hls_ts_file(std::string vhost)
-{
-    return "[app]/[stream]-[seq].ts";
-}
-
-std::string MockAppConfig::get_hls_fmp4_file(std::string vhost)
-{
-    return "[app]/[stream]-[seq].m4s";
-}
-
-std::string MockAppConfig::get_hls_init_file(std::string vhost)
-{
-    return "[app]/[stream]-init.mp4";
-}
-
-bool MockAppConfig::get_hls_ts_floor(std::string vhost)
-{
-    return false;
-}
-
-srs_utime_t MockAppConfig::get_hls_fragment(std::string vhost)
-{
-    return 10 * SRS_UTIME_SECONDS;
-}
-
-double MockAppConfig::get_hls_td_ratio(std::string vhost)
-{
-    return 1.5;
-}
-
-double MockAppConfig::get_hls_aof_ratio(std::string vhost)
-{
-    return 2.0;
-}
-
-srs_utime_t MockAppConfig::get_hls_window(std::string vhost)
-{
-    return 60 * SRS_UTIME_SECONDS;
-}
-
-std::string MockAppConfig::get_hls_on_error(std::string vhost)
-{
-    return "continue";
-}
-
-bool MockAppConfig::get_hls_cleanup(std::string vhost)
-{
-    return true;
-}
-
-srs_utime_t MockAppConfig::get_hls_dispose(std::string vhost)
-{
-    return 120 * SRS_UTIME_SECONDS;
-}
-
-bool MockAppConfig::get_hls_wait_keyframe(std::string vhost)
-{
-    return true;
-}
-
-bool MockAppConfig::get_hls_keys(std::string vhost)
-{
-    return false;
-}
-
-int MockAppConfig::get_hls_fragments_per_key(std::string vhost)
-{
-    return 5;
-}
-
-std::string MockAppConfig::get_hls_key_file(std::string vhost)
-{
-    return "[app]/[stream]-[seq].key";
-}
-
-std::string MockAppConfig::get_hls_key_file_path(std::string vhost)
-{
-    return "./objs/nginx/html";
-}
-
-std::string MockAppConfig::get_hls_key_url(std::string vhost)
-{
-    return "";
-}
-
-int MockAppConfig::get_vhost_hls_nb_notify(std::string vhost)
-{
-    return 64;
-}
-
-bool MockAppConfig::get_vhost_hls_dts_directly(std::string vhost)
-{
-    return true;
-}
-
-bool MockAppConfig::get_hls_ctx_enabled(std::string vhost)
-{
-    return true;
-}
-
-bool MockAppConfig::get_hls_ts_ctx_enabled(std::string vhost)
-{
-    return true;
-}
-
-bool MockAppConfig::get_hls_master_m3u8_path_relative(std::string vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::get_hls_recover(std::string vhost)
-{
-    return true;
-}
-
-bool MockAppConfig::get_forward_enabled(std::string vhost)
-{
-    return forwards_directive_ != NULL || backend_directive_ != NULL;
-}
-
-SrsConfDirective *MockAppConfig::get_forwards(std::string vhost)
-{
-    return forwards_directive_;
-}
-
-srs_utime_t MockAppConfig::get_queue_length(std::string vhost)
-{
-    return 30 * SRS_UTIME_SECONDS;
-}
-
-SrsConfDirective *MockAppConfig::get_forward_backend(std::string vhost)
-{
-    return backend_directive_;
-}
-
-bool MockAppConfig::get_atc(std::string vhost)
-{
-    return false;
-}
-
-int MockAppConfig::get_time_jitter(std::string vhost)
-{
-    return SrsRtmpJitterAlgorithmFULL;
-}
-
-bool MockAppConfig::get_mix_correct(std::string vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::try_annexb_first(std::string vhost)
-{
-    return true;
-}
-
-bool MockAppConfig::get_vhost_is_edge(std::string vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::get_atc_auto(std::string vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::get_reduce_sequence_header(std::string vhost)
-{
-    return false;
-}
-
-bool MockAppConfig::get_parse_sps(std::string vhost)
-{
-    return true;
-}
-
-void MockAppConfig::set_http_hooks_enabled(bool enabled)
-{
-    http_hooks_enabled_ = enabled;
-}
-
-void MockAppConfig::set_on_stop_urls(const std::vector<std::string> &urls)
-{
-    clear_on_stop_directive();
-    if (!urls.empty()) {
-        on_stop_directive_ = new SrsConfDirective();
-        on_stop_directive_->name_ = "on_stop";
-        on_stop_directive_->args_ = urls;
-    }
-}
-
-void MockAppConfig::clear_on_stop_directive()
-{
-    srs_freep(on_stop_directive_);
-}
-
-void MockAppConfig::set_on_unpublish_urls(const std::vector<std::string> &urls)
-{
-    clear_on_unpublish_directive();
-    if (!urls.empty()) {
-        on_unpublish_directive_ = new SrsConfDirective();
-        on_unpublish_directive_->name_ = "on_unpublish";
-        on_unpublish_directive_->args_ = urls;
-    }
-}
-
-void MockAppConfig::clear_on_unpublish_directive()
-{
-    srs_freep(on_unpublish_directive_);
-}
-
-void MockAppConfig::set_rtc_nack_enabled(bool enabled)
-{
-    rtc_nack_enabled_ = enabled;
-}
-
-void MockAppConfig::set_rtc_nack_no_copy(bool no_copy)
-{
-    rtc_nack_no_copy_ = no_copy;
-}
-
-void MockAppConfig::set_rtc_drop_for_pt(int pt)
-{
-    rtc_drop_for_pt_ = pt;
-}
-
-void MockAppConfig::set_rtc_twcc_enabled(bool enabled)
-{
-    rtc_twcc_enabled_ = enabled;
-}
-
-void MockAppConfig::set_srt_enabled(bool enabled)
-{
-    srt_enabled_ = enabled;
-}
-
-void MockAppConfig::set_rtc_to_rtmp(bool enabled)
-{
-    rtc_to_rtmp_ = enabled;
-}
-
-void MockAppConfig::set_api_as_candidates(bool enabled)
-{
-    api_as_candidates_ = enabled;
-}
-
-void MockAppConfig::set_resolve_api_domain(bool enabled)
-{
-    resolve_api_domain_ = enabled;
-}
-
-void MockAppConfig::set_keep_api_domain(bool enabled)
-{
-    keep_api_domain_ = enabled;
-}
-
-bool MockAppConfig::get_security_enabled(std::string vhost)
-{
-    return false;
-}
-
-SrsConfDirective *MockAppConfig::get_security_rules(std::string vhost)
-{
-    return NULL;
-}
-
 // Mock RTC packet receiver implementation
 MockRtcPacketReceiver::MockRtcPacketReceiver()
 {
@@ -1160,6 +705,7 @@ MockLiveSource::MockLiveSource()
     on_audio_count_ = 0;
     on_video_count_ = 0;
     on_dump_packets_count_ = 0;
+    on_frame_count_ = 0;
 }
 
 MockLiveSource::~MockLiveSource()
@@ -1196,14 +742,23 @@ srs_error_t MockLiveSource::consumer_dumps(ISrsLiveConsumer *consumer, bool ds, 
 
 srs_error_t MockLiveSource::on_audio(SrsRtmpCommonMessage *audio)
 {
-    on_audio_count_++;
     return SrsLiveSource::on_audio(audio);
 }
 
 srs_error_t MockLiveSource::on_video(SrsRtmpCommonMessage *video)
 {
-    on_video_count_++;
     return SrsLiveSource::on_video(video);
+}
+
+srs_error_t MockLiveSource::on_frame(SrsMediaPacket *msg)
+{
+    on_frame_count_++;
+    if (msg->is_audio()) {
+        on_audio_count_++;
+    } else if (msg->is_video()) {
+        on_video_count_++;
+    }
+    return SrsLiveSource::on_frame(msg);
 }
 
 // Mock SRT source implementation
@@ -1358,6 +913,19 @@ MockRtmpServer::~MockRtmpServer()
         srs_freep(msg);
     }
     recv_msgs_.clear();
+}
+
+void MockRtmpServer::set_request(SrsRtmpConnType type, std::string ip, std::string vhost, std::string app, std::string stream, std::string tcUrl, std::string schema, int port, std::string host)
+{
+    type_ = type;
+    ip_ = ip;
+    vhost_ = vhost;
+    app_ = app;
+    stream_ = stream;
+    tcUrl_ = tcUrl;
+    schema_ = schema;
+    port_ = port;
+    host_ = host;
 }
 
 void MockRtmpServer::set_recv_timeout(srs_utime_t tm)
@@ -2464,6 +2032,31 @@ void MockOriginHub::set_on_forwarder_start_error(srs_error_t err)
     on_forwarder_start_error_ = srs_error_copy(err);
 }
 
+// MockAudioCache implementation
+MockAudioCache::MockAudioCache()
+{
+    process_packet_count_ = 0;
+}
+
+MockAudioCache::~MockAudioCache()
+{
+}
+
+srs_error_t MockAudioCache::process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets)
+{
+    process_packet_count_++;
+
+    // Copy the packet.
+    SrsRtpPacket *copy = src->copy();
+    ready_packets.push_back(copy);
+
+    return srs_success;
+}
+
+void MockAudioCache::clear_all()
+{
+}
+
 // Mock ISrsBasicRtmpClient implementation
 MockRtmpClient::MockRtmpClient()
 {
@@ -2624,4 +2217,52 @@ void MockRtmpClient::set_recv_timeout(srs_utime_t timeout)
 void MockRtmpClient::set_url(std::string url)
 {
     url_ = url;
+}
+
+MockAudioTranscoder::MockAudioTranscoder()
+{
+    transcode_count_ = 0;
+    // Set default AAC header for mock transcoder
+    aac_header_ = std::string("\xAF\x00\x12\x10", 4);
+}
+
+MockAudioTranscoder::~MockAudioTranscoder()
+{
+}
+
+srs_error_t MockAudioTranscoder::initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate)
+{
+    return srs_success;
+}
+
+srs_error_t MockAudioTranscoder::transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs)
+{
+    transcode_count_++;
+
+    SrsParsedAudioPacket *out = in->copy();
+    output_packets_.push_back(out);
+    outs.push_back(out);
+
+    return srs_success;
+}
+
+void MockAudioTranscoder::free_frames(std::vector<SrsParsedAudioPacket *> &frames)
+{
+    for (std::vector<SrsParsedAudioPacket *>::iterator it = frames.begin(); it != frames.end(); ++it) {
+        SrsParsedAudioPacket *p = *it;
+        srs_freep(p);
+    }
+}
+
+void MockAudioTranscoder::aac_codec_header(uint8_t **data, int *len)
+{
+    int size = aac_header_.size();
+    if (size <= 0) {
+        return;
+    }
+
+    uint8_t *copy = new uint8_t[size];
+    memcpy(copy, aac_header_.data(), size);
+    *data = copy;
+    *len = size;
 }

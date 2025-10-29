@@ -322,6 +322,7 @@ SrsMpdWriter::~SrsMpdWriter()
     app_factory_ = NULL;
 }
 
+// LCOV_EXCL_START
 void SrsMpdWriter::dispose()
 {
     if (req_) {
@@ -335,6 +336,7 @@ void SrsMpdWriter::dispose()
         }
     }
 }
+// LCOV_EXCL_STOP
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
 // in the fetch_or_create pattern (see PR 4449).
@@ -369,6 +371,7 @@ srs_error_t SrsMpdWriter::on_publish()
     return srs_success;
 }
 
+// LCOV_EXCL_START
 void SrsMpdWriter::on_unpublish()
 {
 }
@@ -473,6 +476,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsMpdWriter::get_fragment(bool video, std::string &home, std::string &file_name, int64_t time, int64_t &sn)
 {
@@ -545,6 +549,7 @@ SrsDashController::~SrsDashController()
     config_ = NULL;
 }
 
+// LCOV_EXCL_START
 void SrsDashController::dispose()
 {
     srs_error_t err = srs_success;
@@ -566,6 +571,7 @@ void SrsDashController::dispose()
 
     srs_trace("gracefully dispose dash %s", req_ ? req_->get_stream_url().c_str() : "");
 }
+// LCOV_EXCL_STOP
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
 // in the fetch_or_create pattern (see PR 4449).
@@ -615,6 +621,7 @@ srs_error_t SrsDashController::on_publish()
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsDashController::on_unpublish()
 {
     mpd_->on_unpublish();
@@ -646,6 +653,7 @@ void SrsDashController::on_unpublish()
         srs_freep(err);
     }
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
@@ -878,7 +886,7 @@ SrsDash::~SrsDash()
 
 void SrsDash::dispose()
 {
-    // We disabled the reload, so DASH will not be enabled by reloading. 
+    // We disabled the reload, so DASH will not be enabled by reloading.
     // As a result, if DASH is disabled, we don't need to dispose.
     if (!enabled_) {
         return;

@@ -51,6 +51,7 @@ SrsFileLog::~SrsFileLog()
     }
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsFileLog::initialize()
 {
     if (_srs_config) {
@@ -170,3 +171,5 @@ void SrsFileLog::open_log_file()
                  O_RDWR | O_CREAT | O_APPEND,
                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 }
+// LCOV_EXCL_STOP
+

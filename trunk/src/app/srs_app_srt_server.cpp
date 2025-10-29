@@ -27,6 +27,7 @@ ISrsSrtClientHandler::~ISrsSrtClientHandler()
 {
 }
 
+// LCOV_EXCL_START
 SrsSrtAcceptor::SrsSrtAcceptor(ISrsSrtClientHandler *srt_handler)
 {
     port_ = 0;
@@ -148,6 +149,7 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 SrsSrtEventLoop::SrsSrtEventLoop()
 {

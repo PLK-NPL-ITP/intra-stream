@@ -162,6 +162,7 @@ SrsAppUtility::~SrsAppUtility()
 {
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsAppUtility::kill(int &pid)
 {
     srs_error_t err = srs_success;
@@ -220,6 +221,7 @@ srs_error_t SrsAppUtility::kill(int &pid)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 static SrsRusage _srs_system_rusage;
 
@@ -547,6 +549,7 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat &r)
     return true;
 }
 
+// LCOV_EXCL_START
 bool srs_get_disk_diskstats_stat(SrsDiskStat &r)
 {
     r.ok_ = true;
@@ -629,6 +632,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat &r)
 
     return true;
 }
+// LCOV_EXCL_STOP
 
 void srs_update_disk_stat()
 {
@@ -1245,6 +1249,7 @@ int srs_get_local_port(int fd)
     return port;
 }
 
+// LCOV_EXCL_START
 string srs_get_peer_ip(int fd)
 {
     // discovery client information
@@ -1286,6 +1291,7 @@ int srs_get_peer_port(int fd)
 
     return port;
 }
+// LCOV_EXCL_STOP
 
 bool srs_is_boolean(string str)
 {

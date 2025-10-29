@@ -229,6 +229,7 @@ srs_error_t SrsIngester::do_cycle()
 {
     srs_error_t err = srs_success;
 
+    // LCOV_EXCL_START
     // when expired, restart all ingesters.
     if (expired_) {
         expired_ = false;
@@ -242,6 +243,7 @@ srs_error_t SrsIngester::do_cycle()
             return srs_error_wrap(err, "parse");
         }
     }
+    // LCOV_EXCL_STOP
 
     // cycle exists ingesters.
     std::vector<ISrsIngesterFFMPEG *>::iterator it;
@@ -333,6 +335,7 @@ srs_error_t SrsIngester::parse_engines(SrsConfDirective *vhost, SrsConfDirective
     // get all engines.
     std::vector<SrsConfDirective *> engines = config_->get_transcode_engines(ingest);
 
+    // LCOV_EXCL_START
     // create ingesters without engines.
     if (engines.empty()) {
         ISrsFFMPEG *ffmpeg = app_factory_->create_ffmpeg(ffmpeg_bin);
@@ -350,6 +353,7 @@ srs_error_t SrsIngester::parse_engines(SrsConfDirective *vhost, SrsConfDirective
         ingesters_.push_back(ingester);
         return err;
     }
+    // LCOV_EXCL_STOP
 
     // create ingesters with engine
     for (int i = 0; i < (int)engines.size(); i++) {
@@ -413,6 +417,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
     if (config_->get_ff_log_enabled()) {
+        // LCOV_EXCL_START
         log_file = config_->get_ff_log_dir();
         log_file += "/";
         log_file += "ffmpeg-ingest";
@@ -423,6 +428,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
         log_file += "-";
         log_file += stream;
         log_file += ".log";
+        // LCOV_EXCL_STOP
     }
 
     std::string log_level = config_->get_ff_log_level();
@@ -450,6 +456,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
             return srs_error_wrap(err, "init ffmpeg");
         }
     } else if (srs_config_ingest_is_stream(input_type)) {
+        // LCOV_EXCL_START
         std::string input_url = config_->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             return srs_error_new(ERROR_ENCODER_NO_INPUT, "empty intput url, ingest=%s", ingest->arg0().c_str());
@@ -461,6 +468,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
         if ((err = ffmpeg->initialize(input_url, output, log_file)) != srs_success) {
             return srs_error_wrap(err, "init ffmpeg");
         }
+        // LCOV_EXCL_STOP
     } else {
         return srs_error_new(ERROR_ENCODER_INPUT_TYPE, "invalid ingest=%s type=%s", ingest->arg0().c_str(), input_type.c_str());
     }

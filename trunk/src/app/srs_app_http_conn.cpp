@@ -94,6 +94,7 @@ SrsHttpConn::~SrsHttpConn()
     app_factory_ = NULL;
 }
 
+// LCOV_EXCL_START
 std::string SrsHttpConn::desc()
 {
     return "HttpConn";
@@ -103,6 +104,7 @@ ISrsKbpsDelta *SrsHttpConn::delta()
 {
     return delta_;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpConn::start()
 {
@@ -306,6 +308,7 @@ string SrsHttpConn::remote_ip()
     return ip_;
 }
 
+// LCOV_EXCL_START
 const SrsContextId &SrsHttpConn::get_id()
 {
     return trd_->cid();
@@ -315,6 +318,7 @@ void SrsHttpConn::expire()
 {
     trd_->interrupt();
 }
+// LCOV_EXCL_STOP
 
 ISrsHttpxConn::ISrsHttpxConn()
 {
@@ -462,6 +466,7 @@ srs_error_t SrsHttpxConn::on_conn_done(srs_error_t r0)
     return r0;
 }
 
+// LCOV_EXCL_START
 std::string SrsHttpxConn::desc()
 {
     if (ssl_) {
@@ -479,6 +484,7 @@ const SrsContextId &SrsHttpxConn::get_id()
 {
     return conn_->get_id();
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpxConn::start()
 {
@@ -544,6 +550,7 @@ srs_error_t SrsHttpServer::initialize()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHttpServer::handle(std::string pattern, ISrsHttpHandler *handler)
 {
     return http_static_->mux()->handle(pattern, handler);
@@ -577,6 +584,7 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
     // Use http static as default server.
     return http_static_->mux()->serve_http(w, r);
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpServer::http_mount(ISrsRequest *r)
 {

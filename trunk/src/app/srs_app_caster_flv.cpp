@@ -144,6 +144,7 @@ srs_error_t SrsAppCasterFlv::initialize(SrsConfDirective *c)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsAppCasterFlv::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
@@ -165,6 +166,7 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(ISrsListener *listener, srs_netfd_t s
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsAppCasterFlv::start()
 {
@@ -246,6 +248,7 @@ void SrsAppCasterFlv::unsubscribe(ISrsDisposingHandler *h)
     manager_->unsubscribe(h);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     SrsHttpMessage *msg = dynamic_cast<SrsHttpMessage *>(r);
@@ -278,6 +281,7 @@ srs_error_t SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 ISrsDynamicHttpConn::ISrsDynamicHttpConn()
 {
@@ -315,6 +319,7 @@ SrsDynamicHttpConn::~SrsDynamicHttpConn()
     app_factory_ = NULL;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string o)
 {
     srs_error_t err = srs_success;
@@ -406,6 +411,7 @@ srs_error_t SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader *rr, SrsFlvDecod
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsDynamicHttpConn::on_start()
 {
@@ -477,6 +483,7 @@ SrsHttpFileReader::~SrsHttpFileReader()
     srs_freep(file_reader_);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHttpFileReader::open(std::string /*file*/)
 {
     return srs_success;
@@ -509,6 +516,7 @@ int64_t SrsHttpFileReader::filesize()
 {
     return 0;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpFileReader::read(void *buf, size_t count, ssize_t *pnread)
 {

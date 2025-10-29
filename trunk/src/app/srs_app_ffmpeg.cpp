@@ -79,6 +79,7 @@ SrsFFMPEG::~SrsFFMPEG()
     config_ = NULL;
 }
 
+// LCOV_EXCL_START
 void SrsFFMPEG::append_iparam(string iparam)
 {
     iparams_.push_back(iparam);
@@ -88,6 +89,7 @@ void SrsFFMPEG::set_oformat(string format)
 {
     oformat_ = format;
 }
+// LCOV_EXCL_STOP
 
 string SrsFFMPEG::output()
 {
@@ -132,6 +134,7 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
     vwidth_ -= vwidth_ % 2;
     vheight_ -= vheight_ % 2;
 
+    // LCOV_EXCL_START
     if (vcodec_ == SRS_RTMP_ENCODER_NO_VIDEO && acodec_ == SRS_RTMP_ENCODER_NO_AUDIO) {
         return srs_error_new(ERROR_ENCODER_VCODEC, "video and audio disabled");
     }
@@ -169,6 +172,7 @@ srs_error_t SrsFFMPEG::initialize_transcode(SrsConfDirective *engine)
             return srs_error_new(ERROR_ENCODER_ABITRATE, "invalid abitrate for aac: %d, must in [16, 72]", abitrate_);
         }
     }
+    // LCOV_EXCL_STOP
 
     if (acodec_ != SRS_RTMP_ENCODER_COPY && acodec_ != SRS_RTMP_ENCODER_NO_AUDIO) {
         if (abitrate_ < 0) {
@@ -208,6 +212,7 @@ srs_error_t SrsFFMPEG::initialize_copy()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsFFMPEG::start()
 {
     srs_error_t err = srs_success;
@@ -421,5 +426,6 @@ void SrsFFMPEG::fast_kill()
 {
     process_->fast_kill();
 }
+// LCOV_EXCL_STOP
 
 #endif

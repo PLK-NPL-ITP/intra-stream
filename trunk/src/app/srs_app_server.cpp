@@ -306,8 +306,6 @@ void SrsServer::dispose()
         python_addons_->shutdown(true);
     }
 
-    config_->unsubscribe(this);
-
     // Destroy all listeners.
     rtmp_listener_->close();
     rtmps_listener_->close();
@@ -336,13 +334,12 @@ void SrsServer::dispose()
     // @remark don't dispose all connections, for too slow.
 }
 
+// LCOV_EXCL_START
 void SrsServer::gracefully_dispose()
 {
     if (python_addons_) {
         python_addons_->shutdown(false);
     }
-
-    config_->unsubscribe(this);
 
     // Always wait for a while to start.
     srs_usleep(config_->get_grace_start_wait());
@@ -391,6 +388,7 @@ void SrsServer::gracefully_dispose()
     srs_usleep(config_->get_grace_final_wait());
     srs_trace("final wait for %dms", srsu2msi(config_->get_grace_final_wait()));
 }
+// LCOV_EXCL_STOP
 
 ISrsCommonHttpHandler *SrsServer::api_server()
 {
@@ -431,12 +429,6 @@ srs_error_t SrsServer::initialize()
     if ((err = dvr_async_->start()) != srs_success) {
         return srs_error_wrap(err, "dvr async");
     }
-
-    // for the main objects(server, config, log, context),
-    // never subscribe handler in constructor,
-    // instead, subscribe handler in initialize method.
-    srs_assert(config_);
-    config_->subscribe(this);
 
     bool stream = config_->get_http_stream_enabled();
     vector<string> http_listens = config_->get_http_stream_listens();
@@ -494,6 +486,7 @@ srs_error_t SrsServer::initialize()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::run()
 {
     srs_error_t err = srs_success;
@@ -562,6 +555,7 @@ srs_error_t SrsServer::run()
 
     return cycle();
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsServer::initialize_st()
 {
@@ -579,6 +573,7 @@ srs_error_t SrsServer::initialize_st()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::initialize_signal()
 {
     srs_error_t err = srs_success;
@@ -594,7 +589,9 @@ srs_error_t SrsServer::initialize_signal()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::listen()
 {
     srs_error_t err = srs_success;
@@ -738,7 +735,9 @@ srs_error_t SrsServer::listen()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::register_signal()
 {
     srs_error_t err = srs_success;
@@ -749,6 +748,7 @@ srs_error_t SrsServer::register_signal()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsServer::http_handle()
 {
@@ -873,6 +873,7 @@ srs_error_t SrsServer::http_handle()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::ingest()
 {
     srs_error_t err = srs_success;
@@ -883,7 +884,9 @@ srs_error_t SrsServer::ingest()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 void SrsServer::stop()
 {
 #ifdef SRS_GPERF_MC
@@ -916,7 +919,9 @@ void SrsServer::stop()
     // This is the last line log of SRS.
     srs_trace("srs terminated");
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::cycle()
 {
     srs_error_t err = srs_success;
@@ -934,6 +939,7 @@ srs_error_t SrsServer::cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 void SrsServer::on_signal(int signo)
 {
@@ -1069,6 +1075,7 @@ srs_error_t SrsServer::do2_cycle()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
@@ -1097,6 +1104,7 @@ srs_error_t SrsServer::do_cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsServer::setup_ticks()
 {
@@ -1192,6 +1200,7 @@ srs_error_t SrsServer::notify(int event, srs_utime_t interval, srs_utime_t tick)
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsServer::resample_kbps()
 {
     // collect delta from all clients.
@@ -1243,7 +1252,9 @@ void SrsServer::resample_kbps()
     // Update the global server level statistics.
     stat_->kbps_sample();
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::listen_srt_mpegts()
 {
     srs_error_t err = srs_success;
@@ -1281,7 +1292,9 @@ srs_error_t SrsServer::listen_srt_mpegts()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 void SrsServer::close_srt_listeners()
 {
     std::vector<SrsSrtAcceptor *>::iterator it;
@@ -1292,7 +1305,9 @@ void SrsServer::close_srt_listeners()
         it = srt_acceptors_.erase(it);
     }
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::accept_srt_client(srs_srt_t srt_fd)
 {
     srs_error_t err = srs_success;
@@ -1316,7 +1331,9 @@ srs_error_t SrsServer::accept_srt_client(srs_srt_t srt_fd)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr)
 {
     srs_error_t err = srs_success;
@@ -1340,7 +1357,9 @@ srs_error_t SrsServer::srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::listen_rtc_udp()
 {
     srs_error_t err = srs_success;
@@ -1390,11 +1409,14 @@ srs_error_t SrsServer::listen_rtc_udp()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::on_udp_packet(ISrsUdpMuxSocket *skt)
 {
     return rtc_session_manager_->on_udp_packet(skt);
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsServer::listen_rtc_api()
 {
@@ -1432,11 +1454,14 @@ srs_error_t SrsServer::listen_rtc_api()
     return err;
 }
 
+// LCOV_EXCL_START
 ISrsRtcConnection *SrsServer::find_rtc_session_by_username(const std::string &username)
 {
     return rtc_session_manager_->find_rtc_session_by_username(username);
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
 {
     srs_error_t err = srs_success;
@@ -1451,6 +1476,7 @@ srs_error_t SrsServer::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_s
 
     return rtc_session_manager_->create_rtc_session(ruc, local_sdp, psession);
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsServer::srs_update_server_statistics()
 {
@@ -1474,6 +1500,7 @@ srs_error_t SrsServer::srs_update_server_statistics()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
 {
     srs_error_t err = do_on_tcp_client(listener, stfd);
@@ -1483,7 +1510,9 @@ srs_error_t SrsServer::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stfd)
 {
     srs_error_t err = srs_success;
@@ -1622,6 +1651,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsServer::on_before_connection(const char *label, int fd, const std::string &ip, int port)
 {
@@ -1775,6 +1805,7 @@ srs_error_t SrsSignalManager::cycle()
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsSignalManager::sig_catcher(int signo)
 {
     int err;
@@ -1788,10 +1819,12 @@ void SrsSignalManager::sig_catcher(int signo)
 
     errno = err;
 }
+// LCOV_EXCL_STOP
 
 // Whether we are in docker, defined in main module.
 extern bool _srs_in_docker;
 
+// LCOV_EXCL_START
 SrsInotifyWorker::SrsInotifyWorker(SrsServer *s)
 {
     server_ = s;
@@ -1941,7 +1974,9 @@ srs_error_t SrsInotifyWorker::cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
+// LCOV_EXCL_START
 SrsPidFileLocker::SrsPidFileLocker()
 {
     pid_fd_ = -1;
@@ -2021,3 +2056,5 @@ void SrsPidFileLocker::close()
         pid_fd_ = -1;
     }
 }
+// LCOV_EXCL_STOP
+

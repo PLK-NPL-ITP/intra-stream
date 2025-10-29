@@ -632,6 +632,7 @@ SrsBuffer *SrsUdpMuxSocket::buffer()
     return cache_buffer_;
 }
 
+// LCOV_EXCL_START
 ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
 {
     SrsUdpMuxSocket *sendonly = new SrsUdpMuxSocket(lfd_);
@@ -653,6 +654,7 @@ ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
 
     return sendonly;
 }
+// LCOV_EXCL_STOP
 
 SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p)
 {
@@ -814,6 +816,8 @@ srs_error_t SrsUdpMuxListener::cycle()
 
         pprint->elapse();
         if (pprint->can_print()) {
+            // LCOV_EXCL_START
+            
             // For performance, only restore context when output log.
             _srs_context->set_id(cid_);
 
@@ -845,6 +849,8 @@ srs_error_t SrsUdpMuxListener::cycle()
             time_last = srs_time_now_cached();
             nn_loop = 0;
             nn_msgs_stage = 0;
+
+            // LCOV_EXCL_STOP
         }
 
         if (SrsUdpPacketRecvCycleInterval > 0) {

@@ -113,8 +113,7 @@ public:
 // SrsServer is the main server class of SRS (Simple Realtime Server) that provides comprehensive
 // streaming media server functionality. It serves as the central orchestrator for all streaming
 // protocols and services in a single-threaded, coroutine-based architecture.
-class SrsServer : public ISrsReloadHandler, // Reload framework for permormance optimization.
-                  public ISrsLiveSourceHandler,
+class SrsServer : public ISrsLiveSourceHandler, // For live source handler.
                   public ISrsTcpHandler,
                   public ISrsHourGlassHandler,
                   public ISrsSrtClientHandler,

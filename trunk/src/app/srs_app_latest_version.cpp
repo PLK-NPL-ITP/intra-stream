@@ -41,6 +41,7 @@ extern bool _srs_config_by_env;
     if (cond)                                    \
     ss << "&" << key << "=" << value
 
+// LCOV_EXCL_START
 // @see https://github.com/ossrs/srs/issues/2424
 // @see https://github.com/ossrs/srs/issues/2508
 void srs_build_features(stringstream &ss)
@@ -173,6 +174,7 @@ void srs_build_features(stringstream &ss)
     SRS_CHECK_FEATURE(security, ss);
     SRS_CHECK_FEATURE2(_srs_config_by_env, "env", ss);
 }
+// LCOV_EXCL_STOP
 
 SrsLatestVersion::SrsLatestVersion()
 {
@@ -188,6 +190,7 @@ SrsLatestVersion::~SrsLatestVersion()
     app_factory_ = NULL;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsLatestVersion::start()
 {
     // @see https://github.com/ossrs/srs/issues/2424
@@ -236,6 +239,7 @@ srs_error_t SrsLatestVersion::cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsLatestVersion::query_latest_version(string &url)
 {

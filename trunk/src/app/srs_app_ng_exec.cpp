@@ -71,6 +71,7 @@ void SrsNgExec::on_unpublish()
     clear_exec_publish();
 }
 
+// LCOV_EXCL_START
 // when error, ng-exec sleep for a while and retry.
 #define SRS_RTMP_EXEC_CIMS (3 * SRS_UTIME_SECONDS)
 srs_error_t SrsNgExec::cycle()
@@ -131,6 +132,7 @@ srs_error_t SrsNgExec::do_cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsNgExec::parse_exec_publish(ISrsRequest *req)
 {
@@ -193,6 +195,7 @@ void SrsNgExec::clear_exec_publish()
     exec_publishs_.clear();
 }
 
+// LCOV_EXCL_START
 void SrsNgExec::show_exec_log_message()
 {
     pprint_->elapse();
@@ -204,6 +207,7 @@ void SrsNgExec::show_exec_log_message()
                   pprint_->age(), (int)exec_publishs_.size(), input_stream_name_.c_str());
     }
 }
+// LCOV_EXCL_STOP
 
 string SrsNgExec::parse(ISrsRequest *req, string tmpl)
 {

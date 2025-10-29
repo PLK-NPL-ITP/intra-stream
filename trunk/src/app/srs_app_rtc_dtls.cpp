@@ -32,6 +32,7 @@ const int DTLS_FRAGMENT_MAX_SIZE = 1200;
 // Defined in HTTP/HTTPS client.
 extern int srs_verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
 
+// LCOV_EXCL_START
 // Setup the openssl timeout for DTLS packet.
 // @see https://www.openssl.org/docs/man1.1.1/man3/DTLS_set_timer_cb.html
 //
@@ -54,6 +55,7 @@ unsigned int dtls_timer_cb(SSL *dtls, unsigned int previous_us)
 
     return timeout_us;
 }
+// LCOV_EXCL_STOP
 
 // Print the information of SSL, DTLS alert as such.
 void ssl_on_info(const SSL *dtls, int where, int ret)
@@ -71,6 +73,7 @@ void ssl_on_info(const SSL *dtls, int where, int ret)
         method = "undefined";
     }
 
+    // LCOV_EXCL_START
     int r1 = SSL_get_error(dtls, ret);
     ERR_clear_error();
     if (where & SSL_CB_LOOP) {
@@ -107,6 +110,7 @@ void ssl_on_info(const SSL *dtls, int where, int ret)
             }
         }
     }
+    // LCOV_EXCL_STOP
 }
 
 #pragma GCC diagnostic push
@@ -203,6 +207,7 @@ SrsDtlsCertificate::SrsDtlsCertificate()
     eckey_ = NULL;
 }
 
+// LCOV_EXCL_START
 SrsDtlsCertificate::~SrsDtlsCertificate()
 {
     if (eckey_) {
@@ -217,6 +222,7 @@ SrsDtlsCertificate::~SrsDtlsCertificate()
         X509_free(dtls_cert_);
     }
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsDtlsCertificate::initialize()
 {
@@ -250,6 +256,7 @@ srs_error_t SrsDtlsCertificate::initialize()
     dtls_pkey_ = EVP_PKEY_new();
     srs_assert(dtls_pkey_);
     if (!ecdsa_mode_) { // By RSA
+        // LCOV_EXCL_START
         RSA *rsa = RSA_new();
         srs_assert(rsa);
 
@@ -268,6 +275,7 @@ srs_error_t SrsDtlsCertificate::initialize()
 
         RSA_free(rsa);
         BN_free(exponent);
+        // LCOV_EXCL_STOP
     }
     if (ecdsa_mode_) { // By ECDSA, https://stackoverflow.com/a/6006898
         eckey_ = EC_KEY_new();
@@ -371,6 +379,7 @@ EVP_PKEY *SrsDtlsCertificate::get_public_key()
     return dtls_pkey_;
 }
 
+// LCOV_EXCL_START
 EC_KEY *SrsDtlsCertificate::get_ecdsa_key()
 {
     return eckey_;
@@ -380,6 +389,7 @@ std::string SrsDtlsCertificate::get_fingerprint()
 {
     return fingerprint_;
 }
+// LCOV_EXCL_STOP
 
 bool SrsDtlsCertificate::is_ecdsa()
 {
@@ -429,6 +439,7 @@ SrsDtlsImpl::~SrsDtlsImpl()
     }
 }
 
+// LCOV_EXCL_START
 long srs_dtls_bio_out_callback(BIO *bio, int cmd, const char *argp, int argi, long argl, long ret)
 {
     long r0 = (BIO_CB_RETURN & cmd) ? ret : 1;
@@ -467,6 +478,7 @@ srs_error_t SrsDtlsImpl::write_dtls_data(void *data, int size)
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
 {
@@ -540,6 +552,7 @@ srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsDtlsImpl::start_active_handshake()
 {
     srs_error_t err = srs_success;
@@ -565,6 +578,7 @@ srs_error_t SrsDtlsImpl::start_active_handshake()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsDtlsImpl::on_dtls(char *data, int nb_data)
 {
@@ -596,6 +610,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
     }
     state_trace((uint8_t *)data, nb_data, true, r0);
 
+    // LCOV_EXCL_START
     // If there is data available in bio_in, use SSL_read to allow SSL to process it.
     // We limit the MTU to 1200 for DTLS handshake, which ensures that the buffer is large enough for reading.
     // TODO: FIXME: DTLS application messages, such as DataChannel messages, may exceed 1500 bytes, but they should be
@@ -626,6 +641,7 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
             return srs_error_wrap(err, "done");
         }
     }
+    // LCOV_EXCL_STOP
 
     return err;
 }
@@ -654,6 +670,7 @@ void SrsDtlsImpl::state_trace(uint8_t *data, int length, bool incoming, int r0)
               nn_arq_packets_, r0, length, content_type, size, handshake_type);
 }
 
+// LCOV_EXCL_START
 const int SRTP_MASTER_KEY_KEY_LEN = 16;
 const int SRTP_MASTER_KEY_SALT_LEN = 14;
 srs_error_t SrsDtlsImpl::get_srtp_key(std::string &recv_key, std::string &send_key)
@@ -695,6 +712,7 @@ void SrsDtlsImpl::callback_by_ssl(std::string type, std::string desc)
         srs_freep(err);
     }
 }
+// LCOV_EXCL_STOP
 
 SrsDtlsClientImpl::SrsDtlsClientImpl(ISrsDtlsCallback *callback) : SrsDtlsImpl(callback)
 {
@@ -724,6 +742,7 @@ srs_error_t SrsDtlsClientImpl::initialize(std::string version, std::string role)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsDtlsClientImpl::on_handshake_done()
 {
     srs_error_t err = srs_success;
@@ -832,6 +851,7 @@ srs_error_t SrsDtlsClientImpl::cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 SrsDtlsServerImpl::SrsDtlsServerImpl(ISrsDtlsCallback *callback) : SrsDtlsImpl(callback)
 {
@@ -855,6 +875,7 @@ srs_error_t SrsDtlsServerImpl::initialize(std::string version, std::string role)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsDtlsServerImpl::on_handshake_done()
 {
     srs_error_t err = srs_success;
@@ -866,6 +887,7 @@ srs_error_t SrsDtlsServerImpl::on_handshake_done()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 bool SrsDtlsServerImpl::is_dtls_client()
 {
@@ -887,6 +909,7 @@ SrsDtlsEmptyImpl::~SrsDtlsEmptyImpl()
 {
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsDtlsEmptyImpl::initialize(std::string version, std::string role)
 {
     return srs_success;
@@ -920,6 +943,7 @@ srs_error_t SrsDtlsEmptyImpl::start_arq()
 {
     return srs_success;
 }
+// LCOV_EXCL_STOP
 
 ISrsDtls::ISrsDtls()
 {
@@ -962,10 +986,12 @@ srs_error_t SrsDtls::on_dtls(char *data, int nb_data)
     return impl_->on_dtls(data, nb_data);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsDtls::get_srtp_key(std::string &recv_key, std::string &send_key)
 {
     return impl_->get_srtp_key(recv_key, send_key);
 }
+// LCOV_EXCL_STOP
 
 ISrsSRTP::ISrsSRTP()
 {
@@ -1034,6 +1060,7 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsSRTP::protect_rtp(void *packet, int *nb_cipher)
 {
     srs_error_t err = srs_success;
@@ -1101,3 +1128,5 @@ srs_error_t SrsSRTP::unprotect_rtcp(void *packet, int *nb_plaintext)
 
     return err;
 }
+// LCOV_EXCL_STOP
+

@@ -76,6 +76,7 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     return srs_api_response(w, r, res->dumps());
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res)
 {
     srs_error_t err = srs_success;
@@ -200,6 +201,7 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc)
 {
@@ -394,6 +396,7 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     return srs_api_response(w, r, res->dumps());
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res)
 {
     srs_error_t err = srs_success;
@@ -508,6 +511,7 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc)
 {

@@ -44,6 +44,7 @@ class SrsRtpVideoBuilder;
 class ISrsRtcConsumer;
 class ISrsCircuitBreaker;
 class ISrsRtcPublishStream;
+class ISrsAppFactory;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType = 111;
@@ -227,11 +228,12 @@ class SrsRtcSource : public ISrsRtpTarget, public ISrsFastTimerHandler, public I
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The RTP bridge, convert RTP packets to other protocols.
-    ISrsRtcBridge *rtc_bridge_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // The RTP bridge, convert RTP packets to other protocols.
+    ISrsRtcBridge *rtc_bridge_;
     // Circuit breaker for protecting server resources.
     ISrsCircuitBreaker *circuit_breaker_;
     // For publish, it's the publish client id.
@@ -349,6 +351,10 @@ class SrsRtcRtpBuilder
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     ISrsRtpTarget *rtp_target_;
     // The format, codec information.
@@ -380,7 +386,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool video_initialized_;
 
 public:
-    SrsRtcRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source);
+    SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
 
 // clang-format off
@@ -419,9 +425,25 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t consume_packets(std::vector<SrsRtpPacket *> &pkts);
 };
 
+// Video packet cache interface
+class ISrsRtcFrameBuilderVideoPacketCache
+{
+public:
+    ISrsRtcFrameBuilderVideoPacketCache();
+    virtual ~ISrsRtcFrameBuilderVideoPacketCache();
+
+public:
+    virtual SrsRtpPacket *get_packet(uint16_t sequence_number) = 0;
+    virtual void store_packet(SrsRtpPacket *pkt) = 0;
+    virtual void clear_all() = 0;
+    virtual SrsRtpPacket *take_packet(uint16_t sequence_number) = 0;
+    virtual int32_t find_next_lost_sn(uint16_t current_sn, uint16_t header_sn, uint16_t &end_sn) = 0;
+    virtual bool check_frame_complete(const uint16_t start, const uint16_t end) = 0;
+};
+
 // Video packet cache for RTP packet management
 // TODO: Maybe should use SrsRtpRingBuffer?
-class SrsRtcFrameBuilderVideoPacketCache
+class SrsRtcFrameBuilderVideoPacketCache : public ISrsRtcFrameBuilderVideoPacketCache
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -462,18 +484,33 @@ SRS_DECLARE_PRIVATE: // clang-format on
     }
 };
 
+// Video frame detector interface
+class ISrsRtcFrameBuilderVideoFrameDetector
+{
+public:
+    ISrsRtcFrameBuilderVideoFrameDetector();
+    virtual ~ISrsRtcFrameBuilderVideoFrameDetector();
+
+public:
+    virtual void on_keyframe_start(SrsRtpPacket *pkt) = 0;
+    virtual srs_error_t detect_frame(uint16_t received, uint16_t &frame_start, uint16_t &frame_end, bool &frame_ready) = 0;
+    virtual srs_error_t detect_next_frame(uint16_t next_head, uint16_t &next_start, uint16_t &next_end, bool &next_ready) = 0;
+    virtual void on_keyframe_detached() = 0;
+    virtual bool is_lost_sn(uint16_t received) = 0;
+};
+
 // Video frame detector for managing frame boundaries and packet loss detection
-class SrsRtcFrameBuilderVideoFrameDetector
+class SrsRtcFrameBuilderVideoFrameDetector : public ISrsRtcFrameBuilderVideoFrameDetector
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsRtcFrameBuilderVideoPacketCache *video_cache_;
+    ISrsRtcFrameBuilderVideoPacketCache *video_cache_;
     uint16_t header_sn_;
     uint16_t lost_sn_;
     int64_t rtp_key_frame_ts_;
 
 public:
-    SrsRtcFrameBuilderVideoFrameDetector(SrsRtcFrameBuilderVideoPacketCache *cache);
+    SrsRtcFrameBuilderVideoFrameDetector(ISrsRtcFrameBuilderVideoPacketCache *cache);
     virtual ~SrsRtcFrameBuilderVideoFrameDetector();
 
 public:
@@ -484,8 +521,20 @@ public:
     bool is_lost_sn(uint16_t received);
 };
 
+// Audio packet cache interface
+class ISrsRtcFrameBuilderAudioPacketCache
+{
+public:
+    ISrsRtcFrameBuilderAudioPacketCache();
+    virtual ~ISrsRtcFrameBuilderAudioPacketCache();
+
+public:
+    virtual srs_error_t process_packet(SrsRtpPacket *src, std::vector<SrsRtpPacket *> &ready_packets) = 0;
+    virtual void clear_all() = 0;
+};
+
 // Audio packet cache for RTP packet jitter buffer management
-class SrsRtcFrameBuilderAudioPacketCache
+class SrsRtcFrameBuilderAudioPacketCache : public ISrsRtcFrameBuilderAudioPacketCache
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -520,6 +569,10 @@ class SrsRtcFrameBuilder
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     ISrsFrameTarget *frame_target_;
 
 // clang-format off
@@ -530,9 +583,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsRtcFrameBuilderAudioPacketCache *audio_cache_;
-    SrsRtcFrameBuilderVideoPacketCache *video_cache_;
-    SrsRtcFrameBuilderVideoFrameDetector *frame_detector_;
+    ISrsRtcFrameBuilderAudioPacketCache *audio_cache_;
+    ISrsRtcFrameBuilderVideoPacketCache *video_cache_;
+    ISrsRtcFrameBuilderVideoFrameDetector *frame_detector_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -547,7 +600,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtpPacket *obs_whip_pps_;
 
 public:
-    SrsRtcFrameBuilder(ISrsFrameTarget *target);
+    SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget *target);
     virtual ~SrsRtcFrameBuilder();
 
 public:
@@ -830,7 +883,7 @@ SRS_DECLARE_PROTECTED: // clang-format on
     uint64_t last_sender_report_sys_time_;
 
 public:
-    SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs, bool is_audio);
+    SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs, bool is_audio, bool init_rate_from_sdp);
     virtual ~SrsRtcRecvTrack();
 
 public:
@@ -864,7 +917,7 @@ SRS_DECLARE_PROTECTED: // clang-format on
 class SrsRtcAudioRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
-    SrsRtcAudioRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc);
+    SrsRtcAudioRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *track_desc, bool init_rate_from_sdp);
     virtual ~SrsRtcAudioRecvTrack();
 
 public:
@@ -878,7 +931,7 @@ public:
 class SrsRtcVideoRecvTrack : public SrsRtcRecvTrack, public ISrsRtpPacketDecodeHandler
 {
 public:
-    SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs);
+    SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDescription *stream_descs, bool init_rate_from_sdp);
     virtual ~SrsRtcVideoRecvTrack();
 
 public:

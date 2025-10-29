@@ -11,6 +11,7 @@
 
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include <srs_app_async_call.hpp>
 #include <srs_app_fragment.hpp>
@@ -184,6 +185,52 @@ public:
     virtual std::string to_string();
 };
 
+// The HLS muxer interface.
+class ISrsHlsMuxer
+{
+public:
+    ISrsHlsMuxer();
+    virtual ~ISrsHlsMuxer();
+
+public:
+    virtual srs_error_t initialize() = 0;
+    virtual void dispose() = 0;
+
+public:
+    virtual int sequence_no() = 0;
+    virtual std::string ts_url() = 0;
+    virtual srs_utime_t duration() = 0;
+    virtual int deviation() = 0;
+
+public:
+    virtual SrsAudioCodecId latest_acodec() = 0;
+    virtual void set_latest_acodec(SrsAudioCodecId v) = 0;
+    virtual SrsVideoCodecId latest_vcodec() = 0;
+    virtual void set_latest_vcodec(SrsVideoCodecId v) = 0;
+
+public:
+    virtual bool pure_audio() = 0;
+    virtual bool is_segment_overflow() = 0;
+    virtual bool is_segment_absolutely_overflow() = 0;
+    virtual bool wait_keyframe() = 0;
+
+public:
+    virtual srs_error_t on_publish(ISrsRequest *req) = 0;
+    virtual srs_error_t on_unpublish() = 0;
+    virtual srs_error_t update_config(ISrsRequest *r, std::string entry_prefix,
+                                      std::string path, std::string m3u8_file, std::string ts_file,
+                                      srs_utime_t fragment, srs_utime_t window, bool ts_floor, double aof_ratio,
+                                      bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
+                                      std::string key_file, std::string key_file_path, std::string key_url) = 0;
+    virtual srs_error_t segment_open() = 0;
+    virtual srs_error_t on_sequence_header() = 0;
+    virtual srs_error_t flush_audio(SrsTsMessageCache *cache) = 0;
+    virtual srs_error_t flush_video(SrsTsMessageCache *cache) = 0;
+    virtual void update_duration(uint64_t dts) = 0;
+    virtual srs_error_t segment_close() = 0;
+    virtual srs_error_t recover_hls() = 0;
+};
+
 // Mux the HLS stream(m3u8 and ts files).
 // Generally, the m3u8 muxer only provides methods to open/close segments,
 // to flush video/audio, without any mechenisms.
@@ -191,7 +238,7 @@ public:
 // That is, user must use HlsCache, which will control the methods of muxer,
 // and provides HLS mechenisms.
 // TODO: Rename to SrsHlsTsMuxer, for TS file only.
-class SrsHlsMuxer
+class SrsHlsMuxer : public ISrsHlsMuxer
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -299,8 +346,20 @@ public:
                                       srs_utime_t fragment, srs_utime_t window, bool ts_floor, double aof_ratio,
                                       bool cleanup, bool wait_keyframe, bool keys, int fragments_per_key,
                                       std::string key_file, std::string key_file_path, std::string key_url);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual srs_error_t create_directories();
+
+public:
     // Open a new segment(a new ts file)
     virtual srs_error_t segment_open();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual std::string generate_ts_filename();
+
+public:
     virtual srs_error_t on_sequence_header();
     // Whether segment overflow,
     // that is whether the current segment duration>=(the segment in config)
@@ -326,9 +385,11 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_segment_close();
+    virtual srs_error_t do_segment_close2();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t do_refresh_m3u8(std::string m3u8_file);
+    virtual srs_error_t do_refresh_m3u8_segment(SrsHlsSegment *segment, std::stringstream &ss);
     // Check if a segment with the given URI already exists in the segments list.
     virtual bool segment_exists(const std::string &ts_url);
 
@@ -468,8 +529,20 @@ public:
     virtual srs_error_t on_unpublish();
     // When publish, update the config for muxer.
     virtual srs_error_t update_config(ISrsRequest *r);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual srs_error_t create_directories();
+
+public:
     // Open a new segment(a new ts file)
     virtual srs_error_t segment_open(srs_utime_t basetime);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual std::string generate_m4s_filename();
+
+public:
     virtual srs_error_t on_sequence_header();
     // Whether segment overflow,
     // that is whether the current segment duration>=(the segment in config)
@@ -494,6 +567,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t do_refresh_m3u8(std::string m3u8_file);
+    virtual srs_error_t do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, std::stringstream &ss);
 };
 
 // The base class for HLS controller
@@ -549,7 +623,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // The HLS muxer to reap ts and m3u8.
     // The TS is cached to SrsTsMessageCache then flush to ts segment.
-    SrsHlsMuxer *muxer_;
+    ISrsHlsMuxer *muxer_;
     // The TS cache
     SrsTsMessageCache *tsmc_;
 

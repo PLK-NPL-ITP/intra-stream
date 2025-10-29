@@ -567,7 +567,7 @@ srs_error_t SrsPath::unlink(std::string path)
         "/usr",
         "/var",
     };
-    for (int i = 0; i < sizeof(forbidden) / sizeof(forbidden[0]); i++) {
+    for (int i = 0; i < (int)(sizeof(forbidden) / sizeof(string)); i++) {
         if (path == forbidden[i]) {
             return srs_error_new(ERROR_SYSTEM_FILE_UNLINK, "unlink forbidden %s", path.c_str());
         }

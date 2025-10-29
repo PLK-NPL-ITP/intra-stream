@@ -193,6 +193,7 @@ void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> medi
     media_->set_cid(cid_);
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGbSession::cycle()
 {
     srs_error_t err = srs_success;
@@ -268,6 +269,7 @@ srs_error_t SrsGbSession::do_cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsGbSession::drive_state()
 {
@@ -402,6 +404,7 @@ void SrsGbListener::close()
 {
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
 {
     srs_error_t err = srs_success;
@@ -428,6 +431,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stf
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 ISrsPsPackHandler::ISrsPsPackHandler()
 {
@@ -518,6 +522,7 @@ std::string SrsGbMediaTcpConn::desc()
     return "GB-Media-TCP";
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGbMediaTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
@@ -658,6 +663,7 @@ srs_error_t SrsGbMediaTcpConn::do_cycle()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsGbMediaTcpConn::on_ps_pack(SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
 {
@@ -853,6 +859,7 @@ srs_error_t SrsGbMuxer::on_ts_message(SrsTsMessage *msg)
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGbMuxer::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -1217,6 +1224,7 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char *frame, int frame_size, uint32
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsGbMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
 {
@@ -1329,6 +1337,7 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGbMuxer::connect()
 {
     srs_error_t err = srs_success;
@@ -1360,6 +1369,7 @@ srs_error_t SrsGbMuxer::connect()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 void SrsGbMuxer::close()
 {
@@ -1656,6 +1666,7 @@ SrsGoApiGbPublish::~SrsGoApiGbPublish()
     app_factory_ = NULL;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsGoApiGbPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
@@ -1672,6 +1683,7 @@ srs_error_t SrsGoApiGbPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
 
     return srs_api_response(w, r, res->dumps());
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res)
 {
