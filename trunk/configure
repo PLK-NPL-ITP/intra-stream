@@ -462,7 +462,8 @@ _default: server utest
 help:
 	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>"
 	@echo "     help            Display this help menu"
-	@echo "     clean           Cleanup project and all depends"
+	@echo "     clean           Cleanup projects and all depends"
+	@echo "     minimize        Remove all unnecessary files to minimize the object size"
 	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM} and all depends"
 	@echo "     server          Build the srs and other modules in main"
 	@echo "     utest           Build the utest for srs"
@@ -472,6 +473,7 @@ help:
 	@echo "     st              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
 	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit"
 	@echo "To reconfigure special depends:"
+	@echo "     clean_srs       Remove the srs build cache."
 	@echo "     clean_openssl   Remove the openssl cache."
 	@echo "     clean_srt       Remove the srt cache."
 	@echo "     clean_srtp2     Remove the libsrtp2 cache."
@@ -484,11 +486,19 @@ help:
 
 clean: clean_srs
 
-destroy:
-	(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM} && rm -rf srs srs_utest src/ utest/ research/))
-
 clean_srs:
-	@(cd ${SRS_OBJS} && rm -rf srs srs_utest src/ utest/ research/)
+	@(cd ${SRS_OBJS} && rm -rf srs srs_utest src/ utest/ research/ logs/)
+
+destroy:
+	@(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM})
+	@if [ -d objs/python_venv ]; then \
+		rm -rf objs/python_venv; \
+	fi
+	@echo "Please re-configure all depends in this platform by: ./configure"
+
+minimize:
+	@(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM} && rm -rf _srs_build_summary.sh srs_auto_headers.hpp Makefile src/ utest/ research/ logs/)
+    @echo "Re-configure SRS and all depends is required next time by: ./configure"
 
 clean_openssl:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/
@@ -548,45 +558,45 @@ cat << END >> ${SRS_MAKEFILE}
 uninstall:
 	@echo "rmdir \$(SRS_PREFIX)"
 	@rm -rf \$(SRS_PREFIX)
+	@echo "rm -rf /etc/init.d/srs"
+	@rm -rf /etc/init.d/srs
+	@echo "rm -rf /usr/lib/systemd/system/srs.service"
+	@rm -rf /usr/lib/systemd/system/srs.service
 
 install:
 	@echo "Now mkdir \$(__REAL_INSTALL)"
 	@mkdir -p \$(__REAL_INSTALL)
-	@echo "Now make the http root dir"
-	@mkdir -p \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/index.html \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -f research/favicon.ico \$(__REAL_INSTALL)/objs/nginx/html
-	@cp -Rf research/players \$(__REAL_INSTALL)/objs/nginx/html/
-	@cp -Rf research/console \$(__REAL_INSTALL)/objs/nginx/html/
-	@cp -Rf 3rdparty/signaling/www/demos \$(__REAL_INSTALL)/objs/nginx/html/
-	@echo "Now copy binary files"
+	
+	@echo "Now copy srs object files"
 	@mkdir -p \$(__REAL_INSTALL)/objs
-	@cp -f objs/srs \$(__REAL_INSTALL)/objs
-	@if [ -d python ]; then \
-		mkdir -p \$(__REAL_INSTALL)/python; \
-		cp -Rf python/ \$(__REAL_INSTALL)/python/; \
-	fi
-	@if [ -d python_addons ]; then \
-		mkdir -p \$(__REAL_INSTALL); \
-		cp -Rf python_addons \$(__REAL_INSTALL)/; \
-	fi
-	@if [ -d objs/python_venv ]; then \
-		mkdir -p \$(__REAL_INSTALL)/objs; \
-		rm -rf \$(__REAL_INSTALL)/objs/python_venv; \
-		cp -Rf objs/python_venv \$(__REAL_INSTALL)/objs/; \
-	fi
+	@cp -f ${SRS_OBJS}/srs \$(__REAL_INSTALL)/objs/srs
+	@cp -Rf ${SRS_OBJS}/st/ \$(__REAL_INSTALL)/objs/st/
+	@cp -Rf ${SRS_OBJS}/srtp2/ \$(__REAL_INSTALL)/objs/srtp2/
+	@cp -Rf ${SRS_OBJS}/opus/ \$(__REAL_INSTALL)/objs/opus
+	@cp -Rf ${SRS_OBJS}/ffmpeg/ \$(__REAL_INSTALL)/objs/ffmpeg/
+	@cp -Rf ${SRS_OBJS}/srt/ \$(__REAL_INSTALL)/objs/srt/
+	@cp -Rf ${SRS_OBJS}/nginx/ \$(__REAL_INSTALL)/objs/nginx/
+	@cp -Rf ${SRS_OBJS}/python_venv/ \$(__REAL_INSTALL)/objs/python_venv/
+	@cp -Rf ${SRS_OBJS}/openssl/ \$(__REAL_INSTALL)/objs/openssl/
+
+	@echo "Now copy intra-stream features files"
+	@cp -Rf ./python_addons/ \$(__REAL_INSTALL)/python_addons/
+	@cp -Rf ./intra-stream_site/ \$(__REAL_INSTALL)/intra-stream_site/
+	
 	@echo "Now copy srs conf files"
 	@mkdir -p \$(__REAL_INSTALL)/conf
 	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
 	@cp -f conf/server.key conf/server.crt \$(__REAL_INSTALL)/conf
-	@echo "Now copy init.d script files"
-	@mkdir -p \$(__REAL_INSTALL)/etc/init.d
-	@cp -f etc/init.d/srs \$(__REAL_INSTALL)/etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
-	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
-	@echo "Now copy systemctl service files"
-	@mkdir -p \$(__REAL_INSTALL)/usr/lib/systemd/system
-	@cp -f usr/lib/systemd/system/srs.service \$(__REAL_INSTALL)/usr/lib/systemd/system/srs.service
+	
+	@echo "Now copy init.d script files to /etc/init.d/ [FOR UBUNTU 20+]"
+	@mkdir -p /etc/init.d
+	@cp -f etc/init.d/srs /etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" /etc/init.d/srs
+	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" /etc/init.d/srs
+
+	@echo "Now copy systemctl service files to /usr/lib/systemd/system [FOR UBUNTU 20+]"
+	@mkdir -p /usr/lib/systemd/system
+	@cp -f usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service
 	@echo ""
 	@echo "@see: https://ossrs.net/lts/zh-cn/docs/v7/doc/service"
 

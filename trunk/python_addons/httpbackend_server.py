@@ -25,6 +25,8 @@ from security_module import AuthManager
 from srs_conn_module import SRSConnectionManager
 from avatar_module import AvatarGenerator
 
+import os, logging, signal, sys
+
 # ============================================================================
 # Pydantic Models for Request/Response
 # ============================================================================
@@ -1057,8 +1059,13 @@ async def clean_cookies(response: Response):
 
 # Frontend路径配置
 streams_record_path = r"./streams_records"  # 直播流记录目录
-app.mount("/streams", StaticFiles(directory=streams_record_path), name="streams_records")
 frontend_path = r"./intra-stream_site"  # 前端静态文件目录
+
+# Ensure the directories exist to prevent mounting errors
+os.makedirs(streams_record_path, exist_ok=True)
+os.makedirs(frontend_path, exist_ok=True)
+
+app.mount("/streams", StaticFiles(directory=streams_record_path), name="streams_records")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 # ============================================================================
@@ -1066,11 +1073,6 @@ app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 # ============================================================================
 
 if __name__ == "__main__":
-    import logging
-    import os
-    import signal
-    import sys
-
     # ========================================================================
     # Step 1: Initialize SRS Logger
     # ========================================================================
