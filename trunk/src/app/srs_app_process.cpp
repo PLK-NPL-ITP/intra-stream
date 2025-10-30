@@ -218,7 +218,7 @@ srs_error_t SrsProcess::start()
 
     // for log
     SrsContextId cid = _srs_context->get_id();
-    int ppid = getpid();
+    // int ppid = getpid(); // unused variable ‘ppid’
 
     // TODO: fork or vfork?
     if ((pid_ = fork()) < 0) {

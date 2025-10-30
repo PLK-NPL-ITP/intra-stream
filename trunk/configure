@@ -51,7 +51,7 @@ if [[ $SRS_GENERATE_OBJS == YES ]]; then exit 0; fi
 # ubuntu echo in Makefile cannot display color, use bash instead
 SRS_BUILD_SUMMARY="_srs_build_summary.sh"
 # utest make entry, (cd utest; make)
-SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
+SrsUtestMakeEntry="@echo \"ignore utest for it's disabled\""
 if [[ $SRS_UTEST == YES ]]; then SrsUtestMakeEntry="\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/utest"; fi
 
 # generate extra phony for each modules.
@@ -430,6 +430,12 @@ cat << END > ${SRS_MAKEFILE}
 .PHONY: clean_srs clean_openssl clean_srtp2 clean_opus clean_ffmpeg clean_st
 .PHONY: st ffmpeg
 
+# Color definitions for pretty output
+RED=\\033[31m
+GREEN=\\033[32m
+YELLOW=\\033[33m
+BLACK=\\033[0m
+
 CC = ${SRS_TOOL_CC}
 CXX = ${SRS_TOOL_CXX}
 AR = ${SRS_TOOL_AR}
@@ -462,27 +468,27 @@ all: _default
 _default: server utest
 
 help:
-	@echo "Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>"
-	@echo "     help            Display this help menu"
-	@echo "     clean           Cleanup projects and all depends"
-	@echo "     minimize        Remove all unnecessary files to minimize the object size"
-	@echo "     destroy         Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM} and all depends"
-	@echo "     server          Build the srs and other modules in main"
-	@echo "     utest           Build the utest for srs"
-	@echo "     install         Install srs to the prefix path"
-	@echo "     uninstall       Uninstall srs from prefix path"
-	@echo "To rebuild special module:"
-	@echo "     st              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
-	@echo "     ffmpeg          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit"
-	@echo "To reconfigure special depends:"
-	@echo "     clean_srs       Remove the srs build cache."
-	@echo "     clean_openssl   Remove the openssl cache."
-	@echo "     clean_srt       Remove the srt cache."
-	@echo "     clean_srtp2     Remove the libsrtp2 cache."
-	@echo "     clean_opus      Remove the opus cache."
-	@echo "     clean_ffmpeg    Remove the FFmpeg cache."
-	@echo "     clean_st        Remove the ST cache."
-	@echo "For example:"
+	@echo "\$(GREEN)Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>\$(BLACK)"
+	@echo "     \$(YELLOW)help\$(BLACK)            Display this help menu"
+	@echo "     \$(YELLOW)clean\$(BLACK)           Cleanup projects and all depends"
+	@echo "     \$(YELLOW)minimize\$(BLACK)        Remove all unnecessary files to minimize the object size"
+	@echo "     \$(YELLOW)destroy\$(BLACK)         Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM} and all depends"
+	@echo "     \$(YELLOW)server\$(BLACK)          Build the srs and other modules in main"
+	@echo "     \$(YELLOW)utest\$(BLACK)           Build the utest for srs"
+	@echo "     \$(YELLOW)install\$(BLACK)         Install srs to the prefix path"
+	@echo "     \$(YELLOW)uninstall\$(BLACK)       Uninstall srs from prefix path"
+	@echo "\$(GREEN)To rebuild special module:\$(BLACK)"
+	@echo "     \$(YELLOW)st\$(BLACK)              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
+	@echo "     \$(YELLOW)ffmpeg\$(BLACK)          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit"
+	@echo "\$(GREEN)To reconfigure special depends:\$(BLACK)"
+	@echo "     \$(YELLOW)clean_srs\$(BLACK)       Remove the srs build cache."
+	@echo "     \$(YELLOW)clean_openssl\$(BLACK)   Remove the openssl cache."
+	@echo "     \$(YELLOW)clean_srt\$(BLACK)       Remove the srt cache."
+	@echo "     \$(YELLOW)clean_srtp2\$(BLACK)     Remove the libsrtp2 cache."
+	@echo "     \$(YELLOW)clean_opus\$(BLACK)      Remove the opus cache."
+	@echo "     \$(YELLOW)clean_ffmpeg\$(BLACK)    Remove the FFmpeg cache."
+	@echo "     \$(YELLOW)clean_st\$(BLACK)        Remove the ST cache."
+	@echo "\$(GREEN)For example:\$(BLACK)"
 	@echo "     make"
 	@echo "     make help"
 
@@ -496,60 +502,60 @@ destroy:
 	@if [ -d objs/python_venv ]; then \
 		rm -rf objs/python_venv; \
 	fi
-	@echo "Please re-configure all depends in this platform by: ./configure"
+	@echo "\$(YELLOW)Please re-configure all depends in this platform by: ./configure\$(BLACK)"
 
 minimize:
 	@(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM} && rm -rf _srs_build_summary.sh srs_auto_headers.hpp Makefile src/ utest/ research/ logs/)
-    @echo "Re-configure SRS and all depends is required next time by: ./configure"
+    @echo "\$(YELLOW)Re-configure SRS and all depends is required next time by: ./configure\$(BLACK)"
 
 clean_openssl:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/openssl-1.1-fit/
-	@echo "Please rebuild openssl by: ./configure"
+	@echo "\$(GREEN)Please rebuild openssl by: ./configure\$(BLACK)"
 
 clean_srt:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srt/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/srt-1-fit/
-	@echo "Please rebuild srt by: ./configure"
+	@echo "\$(GREEN)Please rebuild srt by: ./configure\$(BLACK)"
 
 clean_srtp2:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp2-fit/
-	@echo "Please rebuild libsrtp2 by: ./configure"
+	@echo "\$(GREEN)Please rebuild libsrtp2 by: ./configure\$(BLACK)"
 
 clean_opus:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/opus/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/opus-1.3.1/
-	@echo "Please rebuild opus by: ./configure"
+	@echo "\$(GREEN)Please rebuild opus by: ./configure\$(BLACK)"
 
 clean_ffmpeg:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/ffmpeg/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit/
-	@echo "Please rebuild FFmpeg by: ./configure"
+	@echo "\$(GREEN)Please rebuild FFmpeg by: ./configure\$(BLACK)"
 
 clean_st:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/
-	@echo "Please rebuild ST by: ./configure"
+	@echo "\$(GREEN)Please rebuild ST by: ./configure\$(BLACK)"
 
 st:
 	@rm -f ${SRS_OBJS}/srs ${SRS_OBJS}/srs_utest
 	@\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs clean
 	@env EXTRA_CFLAGS="${_ST_EXTRA_CFLAGS}" \$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/st-srs ${_ST_MAKE_ARGS} CC=\$(CC) CXX=\$(CXX) AR=\$(AR) LD=\$(LINK) RANDLIB=\$(RANDLIB)
-	@echo "Please rebuild srs by: make"
+	@echo "\$(GREEN)Please rebuild srs by: make\$(BLACK)"
 
 ffmpeg:
 	@rm -f ${SRS_OBJS}/srs ${SRS_OBJS}/srs_utest
 	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit
 	\$(MAKE)\$(JOBS) -C ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit install-libs
-	@echo "Please rebuild srs by: make"
+	@echo "\$(GREEN)Please rebuild srs by: make\$(BLACK)"
 
 END
 
 # Generate Makefile entry for srs-server.
 cat << END >> ${SRS_MAKEFILE}
 server: _prepare_dir
-	@echo "Build the SRS server, JOBS=\${JOBS}, FORCE_MAKE_JOBS=${SRS_FORCE_MAKE_JOBS}"
+	@echo "\$(GREEN)Build the SRS server, JOBS=\${JOBS}, FORCE_MAKE_JOBS=${SRS_FORCE_MAKE_JOBS}\$(BLACK)"
 	\$(MAKE)\$(JOBS) -f ${SRS_OBJS}/Makefile srs
 	@bash objs/_srs_build_summary.sh
 
@@ -560,20 +566,20 @@ cat << END >> ${SRS_MAKEFILE}
 uninstall:
 	@sudo systemctl stop intra-stream
 	@sudo systemctl disable intra-stream
-	@echo "rmdir \$(SRS_PREFIX)"
+	@echo "\$(YELLOW)rmdir \$(SRS_PREFIX)\$(BLACK)"
 	@rm -rf \$(SRS_PREFIX)
-	@echo "rm -rf /etc/init.d/intra-stream"
+	@echo "\$(YELLOW)rm -rf /etc/init.d/intra-stream\$(BLACK)"
 	@rm -rf /etc/init.d/intra-stream
-	@echo "rm -rf /usr/lib/systemd/system/intra-stream.service"
+	@echo "\$(YELLOW)rm -rf /usr/lib/systemd/system/intra-stream.service\$(BLACK)"
 	@rm -rf /usr/lib/systemd/system/intra-stream.service
 	@sudo systemctl daemon-reload
-	@echo "Successfully uninstalled Intra-Stream from \$(SRS_PREFIX)"
+	@echo "\$(GREEN)Successfully uninstalled Intra-Stream from \$(SRS_PREFIX)\$(BLACK)"
 
 install:
-	@echo "Now mkdir \$(__REAL_INSTALL)"
+	@echo "\$(GREEN)Now mkdir \$(__REAL_INSTALL)\$(BLACK)"
 	@mkdir -p \$(__REAL_INSTALL)
 	
-	@echo "Now copy srs object files"
+	@echo "\$(GREEN)Now copy srs object files\$(BLACK)"
 	@mkdir -p \$(__REAL_INSTALL)/objs
 	@cp -f ${SRS_OBJS}/srs \$(__REAL_INSTALL)/objs/srs
 	@cp -Rf ${SRS_OBJS}/st/ \$(__REAL_INSTALL)/objs/st/
@@ -585,37 +591,37 @@ install:
 	@cp -Rf ${SRS_OBJS}/python_venv/ \$(__REAL_INSTALL)/objs/python_venv/
 	@cp -Rf ${SRS_OBJS}/openssl/ \$(__REAL_INSTALL)/objs/openssl/
 
-	@echo "Now copy intra-stream features files"
+	@echo "\$(GREEN)Now copy intra-stream features files\$(BLACK)"
 	@cp -Rf ./python_addons/ \$(__REAL_INSTALL)/python_addons/
 	@cp -Rf ./intra-stream_site/ \$(__REAL_INSTALL)/intra-stream_site/
 	
-	@echo "Now copy srs conf files"
+	@echo "\$(GREEN)Now copy srs conf files\$(BLACK)"
 	@mkdir -p \$(__REAL_INSTALL)/conf
 	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
 	@cp -f conf/server.key conf/server.crt \$(__REAL_INSTALL)/conf
 	
 	@echo ""
-	@echo "Now copy init.d script files to /etc/init.d/ [FOR UBUNTU 20+]"
+	@echo "\$(GREEN)Now copy init.d script files to /etc/init.d/ [FOR UBUNTU 20+]\$(BLACK)"
 	@mkdir -p /etc/init.d
 	@cp -f etc/init.d/intra-stream /etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" /etc/init.d/intra-stream
 	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" /etc/init.d/intra-stream
 	
-	@echo "Now copy systemctl service files to /usr/lib/systemd/system [FOR UBUNTU 20+]"
+	@echo "\$(GREEN)Now copy systemctl service files to /usr/lib/systemd/system [FOR UBUNTU 20+]\$(BLACK)"
 	@mkdir -p /usr/lib/systemd/system
 	@cp -f usr/lib/systemd/system/intra-stream.service /usr/lib/systemd/system/intra-stream.service
 	
-	@echo "Now register the intra-stream service [FOR UBUNTU 20+]"
+	@echo "\$(GREEN)Now register the intra-stream service [FOR UBUNTU 20+]\$(BLACK)"
 	@sudo systemctl daemon-reload && sudo systemctl enable intra-stream
-	@echo "Service in automatically start the intra-stream service after network.target has been registered [FOR UBUNTU 20+]"
-	@echo "Successfully installed Intra-Stream to \$(SRS_PREFIX)"
+	@echo "\$(GREEN)Service in automatically start the intra-stream service after network.target has been registered [FOR UBUNTU 20+]\$(BLACK)"
+	@echo "\$(GREEN)Successfully installed Intra-Stream to \$(SRS_PREFIX)\$(BLACK)"
 	
-	@echo "start the service manually by: sudo systemctl start intra-stream"
-	@echo "check the service status by: sudo systemctl status intra-stream"
-	@echo "view the service log by: sudo journalctl -u intra-stream -f"
-	@echo "view the intra-stream log by: sudo tail -n 30 -f \$(SRS_PREFIX)/objs/srs.log"
+	@echo "\$(YELLOW)start the service manually by: sudo systemctl start intra-stream\$(BLACK)"
+	@echo "\$(YELLOW)check the service status by: sudo systemctl status intra-stream\$(BLACK)"
+	@echo "\$(YELLOW)view the service log by: sudo journalctl -u intra-stream -f\$(BLACK)"
+	@echo "\$(YELLOW)view the intra-stream log by: sudo tail -n 30 -f \$(SRS_PREFIX)/objs/srs.log\$(BLACK)"
 	
-	@echo "uninstall the service by: sudo make uninstall"
+	@echo "\$(YELLOW)uninstall the service by: sudo make uninstall\$(BLACK)"
 END
 
 if [[ $SRS_UTEST == YES ]]; then
@@ -649,8 +655,8 @@ echo 'Configure ok! '
 #####################################################################################
 # when configure success, prepare build
 #####################################################################################
-# create objs/logs for ffmpeg to write log.
-mkdir -p ${SRS_OBJS}/logs
+# create objs/logs for ffmpeg to write log. #deprecated
+# mkdir -p ${SRS_OBJS}/logs
 
 #####################################################################################
 # prepare python addons virtual environment
