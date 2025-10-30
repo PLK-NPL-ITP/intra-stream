@@ -140,10 +140,16 @@ srs_error_t SrsHttpConn::cycle()
 
     // client close peer.
     // TODO: FIXME: Only reset the error when client closed it.
+    // Skip logging for localhost/127.0.0.1 to reduce log verbosity
+    bool is_local = (ip_.find("127.") == 0 || ip_ == "::1" || ip_ == "0.0.0.0");
     if (srs_is_client_gracefully_close(err)) {
-        srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+        if (!is_local) {
+            srs_warn("client disconnect peer. ret=%d", srs_error_code(err));
+        }
     } else if (srs_is_server_gracefully_close(err)) {
-        srs_warn("server disconnect. ret=%d", srs_error_code(err));
+        if (!is_local) {
+            srs_warn("server disconnect. ret=%d", srs_error_code(err));
+        }
     } else {
         srs_error("serve error %s", srs_error_desc(err).c_str());
     }
@@ -245,8 +251,12 @@ srs_error_t SrsHttpConn::process_request(ISrsHttpResponseWriter *w, ISrsHttpMess
 {
     srs_error_t err = srs_success;
 
-    srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip_.c_str(), port_,
-              r->method_str().c_str(), r->url().c_str(), r->content_length());
+    // Skip logging for localhost/127.0.0.1 to reduce log verbosity
+    bool is_local = (ip_.find("127.") == 0 || ip_ == "::1" || ip_ == "0.0.0.0");
+    if (!is_local) {
+        srs_trace("HTTP #%d %s:%d %s %s, content-length=%" PRId64 "", rid, ip_.c_str(), port_,
+                  r->method_str().c_str(), r->url().c_str(), r->content_length());
+    }
 
     // proxy to cors-->auth-->http_remux.
     if ((err = cors_->serve_http(w, r)) != srs_success) {

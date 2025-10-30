@@ -36,7 +36,7 @@ echo -e "     \${BLACK}+--------------------------------------------------------
 echo -e "     \${GREEN}For SRS benchmark, gperf, gprof and valgrind, please read:\${BLACK}"
 echo -e "     \${GREEN}     https://ossrs.net/lts/zh-cn/docs/v7/doc/performance\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
-echo -e "     |\${GREEN}The main server usage: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
+echo -e "     |\${GREEN}The main server usage: ./objs/srs -c ${SRS_DEFAULT_CONFIG}, start the srs server\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}About HLS, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/hls\${BLACK}"
 echo -e "     |     ${SrsDvrSummaryColor}About DVR, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/dvr\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}About SSL, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/rtmp-handshake\${BLACK}"
@@ -51,7 +51,7 @@ echo -e "     \${BLACK}+--------------------------------------------------------
 echo -e "\${GREEN}binaries, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/install\${BLACK}"
 
 echo "You can:"
-echo "      ./objs/srs -c conf/srs.conf"
-echo "                  to start the srs server, with config conf/srs.conf."
+echo "      ./objs/srs -c ${SRS_DEFAULT_CONFIG}"
+echo "                  to start the srs server, with config ${SRS_DEFAULT_CONFIG}."
 END
 

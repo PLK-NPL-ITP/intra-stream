@@ -73,6 +73,9 @@ public:
 public:
     // The resource description, optional.
     virtual std::string desc();
+    // Get remote IP address if this is a connection resource, empty string otherwise.
+    // This is used to filter logging for local connections.
+    virtual std::string remote_ip();
 };
 
 // The manager for resource.

@@ -21,6 +21,19 @@ SrsPps *_srs_pps_dispose = NULL;
 
 SrsResourceManager *_srs_conn_manager = NULL;
 
+// Helper function to check if a resource is from a local connection
+static bool srs_is_local_connection(ISrsResource* c)
+{
+    // Get remote IP from the resource
+    std::string ip = c->remote_ip();
+    if (ip.empty()) {
+        return false;
+    }
+    
+    // Check if it's a local address
+    return (ip.find("127.") == 0 || ip == "::1" || ip == "0.0.0.0");
+}
+
 ISrsDisposingHandler::ISrsDisposingHandler()
 {
 }
@@ -40,6 +53,11 @@ ISrsResource::~ISrsResource()
 std::string ISrsResource::desc()
 {
     return "Resource";
+}
+
+std::string ISrsResource::remote_ip()
+{
+    return "";
 }
 
 ISrsResourceManager::ISrsResourceManager()
@@ -262,7 +280,9 @@ void SrsResourceManager::do_remove(ISrsResource *c)
     check_remove(c, in_zombie, in_disposing);
     bool ignored = in_zombie || in_disposing;
 
-    if (verbose_) {
+    // Skip logging for local connections to reduce log verbosity
+    bool is_local = srs_is_local_connection(c);
+    if (verbose_ && !is_local) {
         _srs_context->set_id(c->get_id());
         srs_trace("%s: before dispose resource(%s)(%p), conns=%d, zombies=%d, ign=%d, inz=%d, ind=%d",
                   label_.c_str(), c->desc().c_str(), c, (int)conns_.size(), (int)zombies_.size(), ignored,
@@ -320,7 +340,16 @@ void SrsResourceManager::clear()
     }
 
     SrsContextRestore(cid_);
-    if (verbose_) {
+    // Skip logging if all zombies are from local connections
+    bool has_non_local = false;
+    for (int i = 0; i < (int)zombies_.size(); i++) {
+        if (!srs_is_local_connection(zombies_.at(i))) {
+            has_non_local = true;
+            break;
+        }
+    }
+    
+    if (verbose_ && has_non_local) {
         srs_trace("%s: clear zombies=%d resources, conns=%d, removing=%d, unsubs=%d",
                   label_.c_str(), (int)zombies_.size(), (int)conns_.size(), removing_, (int)unsubs_.size());
     }
@@ -344,7 +373,9 @@ void SrsResourceManager::do_clear()
     for (int i = 0; i < (int)copy.size(); i++) {
         ISrsResource *conn = copy.at(i);
 
-        if (verbose_) {
+        // Skip logging for local connections to reduce log verbosity
+        bool is_local = srs_is_local_connection(conn);
+        if (verbose_ && !is_local) {
             _srs_context->set_id(conn->get_id());
             srs_trace("%s: disposing #%d resource(%s)(%p), conns=%d, disposing=%d, zombies=%d", label_.c_str(),
                       i, conn->desc().c_str(), conn, (int)conns_.size(), (int)copy.size(), (int)zombies_.size());
