@@ -1,20 +1,20 @@
 #!/bin/bash
 
 ### BEGIN INIT INFO
-# Provides:          ossrs(srs)
+# Provides:          Intra-Stream
 # Required-Start:    $all
 # Required-Stop:     $all
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: ossrs(srs)
-# Description:       https://github.com/ossrs/srs
+# Short-Description: Intra-Stream
+# Description:       https://github.com/PLK-NPL-ITP/intra-stream <- https://github.com/ossrs/srs
 ### END INIT INFO
 
 # the config of ROOT, user must modify it when start srs from other directory,
 # it's ok to use the script by command ./etc/init.d/ossrs
 ROOT="./"
 APP="./objs/srs"
-CONFIG="./conf/srs.conf"
+CONFIG="./conf/intra-stream_daemon.conf"
 DEFAULT_PID_FILE='./objs/srs.pid'
 DEFAULT_LOG_FILE='./objs/srs.log'
 NOFILE_LIMIT="${NOFILE_LIMIT:-10000}"
@@ -63,11 +63,11 @@ load_process_info() {
 start() {
     # if exists, exit.
     load_process_info
-    if [[ 0 -eq $? ]]; then failed_msg "SRS started(pid ${srs_pid}), should not start it again."; return 1; fi
+    if [[ 0 -eq $? ]]; then failed_msg "Intra-Stream started(pid ${srs_pid}), should not start it again."; return 1; fi
     
     # not exists, start server
-    ok_msg "Starting SRS..."
-    
+    ok_msg "Starting Intra-Stream..."
+
     # get log file
     log_file=`cd ${ROOT} && cat ${CONFIG} |grep '^srs_log_file'| awk '{print $2}'| awk -F ';' '{print $1}'`
     if [[ -z $log_file ]]; then log_file=${DEFAULT_LOG_FILE}; fi
@@ -95,7 +95,7 @@ start() {
         sleep 0.1
         load_process_info
         ret=$?; if [[ 0 -ne $ret ]]; then 
-            failed_msg "SRS start failed"; 
+            failed_msg "Intra-Stream start failed"; 
             failed_msg "see $log_file"; 
             return $ret; 
         fi
@@ -103,18 +103,18 @@ start() {
     
     # check whether started.
     load_process_info
-    ret=$?; if [[ 0 -eq $ret ]]; then ok_msg "SRS started(pid ${srs_pid})"; return 0; fi
+    ret=$?; if [[ 0 -eq $ret ]]; then ok_msg "Intra-Stream started(pid ${srs_pid})"; return 0; fi
     
-    failed_msg "SRS not started"
+    failed_msg "Intra-Stream not started"
     return $ret
 }
 
 stop() {
     # not start, exit
     load_process_info
-    if [[ 0 -ne $? ]]; then failed_msg "SRS not start."; return 0; fi
+    if [[ 0 -ne $? ]]; then failed_msg "Intra-Stream not start."; return 0; fi
     
-    ok_msg "Stopping SRS(pid ${srs_pid})..."
+    ok_msg "Stopping Intra-Stream(pid ${srs_pid})..."
     
     # process exists, try to kill to stop normally
     for((i=0;i<100;i++)); do
@@ -124,7 +124,7 @@ stop() {
             ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "send signal SIGTERM failed ret=$ret"; return $ret; fi
             sleep 0.3
         else
-            ok_msg "SRS stopped by SIGTERM"
+            ok_msg "Intra-Stream stopped by SIGTERM"
             # delete the pid file when stop success.
             rm -f ${pid_file}
             break;
@@ -136,7 +136,7 @@ stop() {
     if [[ 0 -eq $? ]]; then
         kill -s SIGKILL ${srs_pid} 2>/dev/null
         ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "send signal SIGKILL failed ret=$ret"; return $ret; fi
-        ok_msg "SRS stopped by SIGKILL"
+        ok_msg "Intra-Stream stopped by SIGKILL"
     else
         # delete the pid file when stop success.
         rm -f ${pid_file}
@@ -150,7 +150,7 @@ stop() {
 # @return 0 if srs is running; otherwise, 1 for stopped.
 status() {
     load_process_info
-    ret=$?; if [[ 0 -eq $ret ]]; then ok_msg "SRS(pid ${srs_pid}) is running."; return 0; fi
+    ret=$?; if [[ 0 -eq $ret ]]; then ok_msg "Intra-Stream(pid ${srs_pid}) is running."; return 0; fi
     
     failed_msg "Error: $error_msg"
     return 1
@@ -159,27 +159,27 @@ status() {
 reload() {
     # not start, exit
     load_process_info
-    if [[ 0 -ne $? ]]; then failed_msg "SRS not start."; return 0; fi
+    if [[ 0 -ne $? ]]; then failed_msg "Intra-Stream not start."; return 0; fi
     
-    ok_msg "Reload SRS(pid ${srs_pid})..."
+    ok_msg "Reload Intra-Stream(pid ${srs_pid})..."
     
     # process exists, reload it
     kill -s SIGHUP ${srs_pid} 2>/dev/null
-    ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "Reload SRS failed ret=$ret"; return $ret; fi
+    ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "Reload Intra-Stream failed ret=$ret"; return $ret; fi
     
     load_process_info
-    if [[ 0 -ne $? ]]; then failed_msg "SRS reload failed."; return $ret; fi
+    if [[ 0 -ne $? ]]; then failed_msg "Intra-Stream reload failed."; return $ret; fi
     
-    ok_msg "SRS reloaded"
+    ok_msg "Intra-Stream reloaded"
     return 0
 }
 
 logrotate() {
     # not start, exit
     load_process_info
-    if [[ 0 -ne $? ]]; then failed_msg "SRS not start."; return 0; fi
+    if [[ 0 -ne $? ]]; then failed_msg "Intra-Stream not start."; return 0; fi
 
-    ok_msg "Reopen log file of SRS(pid ${srs_pid})..."
+    ok_msg "Reopen log file of Intra-Stream(pid ${srs_pid})..."
     kill -s SIGUSR1 ${srs_pid}
 
     ok_msg "Log rotated"
@@ -189,9 +189,9 @@ logrotate() {
 grace() {
     # not start, exit
     load_process_info
-    if [[ 0 -ne $? ]]; then failed_msg "SRS not start."; return 0; fi
+    if [[ 0 -ne $? ]]; then failed_msg "Intra-Stream not start."; return 0; fi
 
-    ok_msg "Gracefully quit for SRS(pid ${srs_pid})..."
+    ok_msg "Gracefully quit for Intra-Stream(pid ${srs_pid})..."
     kill -s SIGQUIT ${srs_pid}
 
     ok_msg "Gracefully quit"
@@ -224,9 +224,13 @@ menu() {
             ;;
         *)
             echo "Usage: $0 {start|stop|status|restart|reload|rotate|grace}"
-            echo "    reload    Apply log file by not restarting SRS"
-            echo "    rotate    For log rotate, to send SIGUSR1 to SRS to reopen the log file."
-            echo "    grace    For gracefully quit, to send SIGQUIT to SRS."
+            echo "    start     Start Intra-Stream server"
+            echo "    stop      Stop Intra-Stream server"
+            echo "    status    Get the status of Intra-Stream server"
+            echo "    restart   Restart Intra-Stream server"
+            echo "    reload    Apply log file by not restarting Intra-Stream"
+            echo "    rotate    For log rotate, to send SIGUSR1 to Intra-Stream to reopen the log file."
+            echo "    grace     For gracefully quit, to send SIGQUIT to Intra-Stream."
             return 1
             ;;
     esac

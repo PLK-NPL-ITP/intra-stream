@@ -1,5 +1,5 @@
 [Unit]
-Description=The SRS Media Stream Cluster
+Description=The Intra-Stream Media Streaming Service
 After=network.target
 
 [Service]

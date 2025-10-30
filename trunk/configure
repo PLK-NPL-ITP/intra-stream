@@ -558,12 +558,16 @@ END
 # install entry
 cat << END >> ${SRS_MAKEFILE}
 uninstall:
+	@sudo systemctl stop intra-stream
+	@sudo systemctl disable intra-stream
 	@echo "rmdir \$(SRS_PREFIX)"
 	@rm -rf \$(SRS_PREFIX)
-	@echo "rm -rf /etc/init.d/srs"
-	@rm -rf /etc/init.d/srs
-	@echo "rm -rf /usr/lib/systemd/system/srs.service"
-	@rm -rf /usr/lib/systemd/system/srs.service
+	@echo "rm -rf /etc/init.d/intra-stream"
+	@rm -rf /etc/init.d/intra-stream
+	@echo "rm -rf /usr/lib/systemd/system/intra-stream.service"
+	@rm -rf /usr/lib/systemd/system/intra-stream.service
+	@sudo systemctl daemon-reload
+	@echo "Successfully uninstalled Intra-Stream from \$(SRS_PREFIX)"
 
 install:
 	@echo "Now mkdir \$(__REAL_INSTALL)"
@@ -590,18 +594,28 @@ install:
 	@cp -f conf/*.conf \$(__REAL_INSTALL)/conf
 	@cp -f conf/server.key conf/server.crt \$(__REAL_INSTALL)/conf
 	
+	@echo ""
 	@echo "Now copy init.d script files to /etc/init.d/ [FOR UBUNTU 20+]"
 	@mkdir -p /etc/init.d
-	@cp -f etc/init.d/srs /etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" /etc/init.d/srs
-	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" /etc/init.d/srs
-
+	@cp -f etc/init.d/intra-stream /etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" /etc/init.d/intra-stream
+	@sed -i "s|^CONFIG=.*|CONFIG=\"\$(SRS_DEFAULT_CONFIG)\"|g" /etc/init.d/intra-stream
+	
 	@echo "Now copy systemctl service files to /usr/lib/systemd/system [FOR UBUNTU 20+]"
 	@mkdir -p /usr/lib/systemd/system
-	@cp -f usr/lib/systemd/system/srs.service /usr/lib/systemd/system/srs.service
-	@echo ""
-	@echo "@see: https://ossrs.net/lts/zh-cn/docs/v7/doc/service"
-
+	@cp -f usr/lib/systemd/system/intra-stream.service /usr/lib/systemd/system/intra-stream.service
+	
+	@echo "Now register the intra-stream service [FOR UBUNTU 20+]"
+	@sudo systemctl daemon-reload && sudo systemctl enable intra-stream
+	@echo "Service in automatically start the intra-stream service after network.target has been registered [FOR UBUNTU 20+]"
+	@echo "Successfully installed Intra-Stream to \$(SRS_PREFIX)"
+	
+	@echo "start the service manually by: sudo systemctl start intra-stream"
+	@echo "check the service status by: sudo systemctl status intra-stream"
+	@echo "view the service log by: sudo journalctl -u intra-stream -f"
+	@echo "view the intra-stream log by: sudo tail -n 30 -f \$(SRS_PREFIX)/objs/srs.log"
+	
+	@echo "uninstall the service by: sudo make uninstall"
 END
 
 if [[ $SRS_UTEST == YES ]]; then

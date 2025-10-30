@@ -46,7 +46,7 @@ SRS_FFMPEG_FIT=RESERVED
 SRS_FFMPEG_OPUS=NO
 # arguments
 SRS_PREFIX=/usr/local/srs
-SRS_DEFAULT_CONFIG=conf/srs.conf
+SRS_DEFAULT_CONFIG=conf/intra-stream.conf
 SRS_JOBS=1
 # If enabled, force to use SRS_JOBS for make on linux, however you're able to overwrite by -jN on macOS.
 SRS_FORCE_MAKE_JOBS=YES
