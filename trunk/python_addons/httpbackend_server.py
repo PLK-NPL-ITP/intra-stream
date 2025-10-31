@@ -25,7 +25,20 @@ from security_module import AuthManager
 from srs_conn_module import SRSConnectionManager
 from avatar_module import AvatarGenerator
 
-import os, logging, signal, sys
+import os, logging, signal, sys, argparse
+
+DEFAULT_LOCAL_FFMPEG_BINARY = "./objs/ffmpeg/bin/ffmpeg"
+SYSTEM_FFMPEG_BINARY = "ffmpeg"
+FFMPEG_BINARY = DEFAULT_LOCAL_FFMPEG_BINARY
+
+_TRUTHY_VALUES = {"1", "true", "yes", "on", "enable", "enabled"}
+
+
+def _is_truthy(value: Optional[str]) -> bool:
+    """Normalize on/off style strings to boolean."""
+    if value is None:
+        return False
+    return str(value).strip().lower() in _TRUTHY_VALUES
 
 # ============================================================================
 # Pydantic Models for Request/Response
@@ -109,13 +122,15 @@ async def lifespan(app: FastAPI):
     
     # 创建认证管理器
     auth_manager = AuthManager(db)
-    system_stats_manager = SRSConnectionManager(db)
+    system_stats_manager = SRSConnectionManager(db, ffmpeg_binary=FFMPEG_BINARY)
     avatar_generator = AvatarGenerator()
     
     app.state.auth_manager = auth_manager
     logger.info("Auth manager initialized")
     system_stats_manager.start_polling()  # 启动系统统计轮询
     app.state.system_stats_manager = system_stats_manager
+    app.state.ffmpeg_binary = FFMPEG_BINARY
+    logger.info(f"FFmpeg binary resolved for connection manager: {FFMPEG_BINARY}")
     logger.info("System stats manager initialized")
     app.state.avatar_generator = avatar_generator
     logger.info("Avatar generator initialized")
@@ -1077,8 +1092,16 @@ if __name__ == "__main__":
     # Step 1: Initialize SRS Logger
     # ========================================================================
     # Initialize the SRS logger singleton with default config path
-    # This reads srs_log_tank and srs_log_file from ./conf/srs.conf
-    logger = get_logger('./conf/srs.conf')
+    # This reads srs_log_tank and srs_log_file from argparse --conf
+    parser = argparse.ArgumentParser(description="Intra-Stream HTTP Backend Server", allow_abbrev=False)
+    parser.add_argument("-c", "--conf", default="./conf/intra-stream_daemon.conf", help="Path to the Intra-Stream config file")
+    parser.add_argument("--configure-sys-ffmpeg", default="off", help="Configure whether using system ffmpeg (on/off)")
+    args, _ = parser.parse_known_args()
+    use_system_ffmpeg = _is_truthy(args.configure_sys_ffmpeg)
+    FFMPEG_BINARY = SYSTEM_FFMPEG_BINARY if use_system_ffmpeg else DEFAULT_LOCAL_FFMPEG_BINARY
+    logger = get_logger(args.conf)
+    logger.info(f"Intra-Stream HTTP Backend Server starting with config: {args.conf}")
+    logger.info(f"FFmpeg binary selection: configure_sys_ffmpeg={args.configure_sys_ffmpeg}, resolved={FFMPEG_BINARY}")
 
     # Read log configuration from the already-initialized logger instance
     # to avoid duplicate config parsing

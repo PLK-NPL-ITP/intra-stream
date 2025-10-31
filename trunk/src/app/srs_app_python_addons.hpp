@@ -61,6 +61,8 @@ private:
     virtual void stop_processes(bool fast);
     static std::vector<std::string> split_args(const std::string &line);
     static std::string resolve_path(const std::string &base, const std::string &path);
+    static std::vector<std::string> build_configure_args();
+    static std::string join_args(const std::vector<std::string> &args);
 };
 
 #endif

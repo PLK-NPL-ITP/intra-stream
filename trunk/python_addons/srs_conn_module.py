@@ -158,9 +158,10 @@ class TaskManager:
 class SRSConnectionManager:
     """SRS连接管理器"""
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, ffmpeg_binary: Optional[str] = None):
         self.db = db
         self.logger = get_logger()
+        self.ffmpeg_binary = self._resolve_ffmpeg_binary(ffmpeg_binary)
         self.api_url = "http://python_stats:wMePq3ahpoLRzgsVg7BY9eE82uuJHT0YukD2ZE1JfMY2RjP4e6QnUaKg3V9x5s9M@localhost:1985/api/v1/summaries"
         self.streams_api_url = "http://python_stats:wMePq3ahpoLRzgsVg7BY9eE82uuJHT0YukD2ZE1JfMY2RjP4e6QnUaKg3V9x5s9M@localhost:1985/api/v1/streams/"
         
@@ -178,6 +179,7 @@ class SRSConnectionManager:
         
         # 注册默认任务
         self._register_tasks()
+        self.logger.info(f"Using ffmpeg binary: {self.ffmpeg_binary}")
 
     # ============================================================================
     # Task Management and Registration
@@ -862,7 +864,7 @@ class SRSConnectionManager:
         try:
             # ffmpeg 命令
             cmd = [
-                'ffmpeg',
+                self.ffmpeg_binary,
                 '-i', rtmp_url,
                 '-vframes', '1',          # 只捕获一帧
                 '-q:v', '2',              # 高质量
@@ -1081,7 +1083,7 @@ class SRSConnectionManager:
         """使用 ffmpeg 合并录像段"""
         try:
             cmd = [
-                'ffmpeg',
+                self.ffmpeg_binary,
                 '-f', 'concat',
                 '-safe', '0',
                 '-i', segments_list_file,
@@ -1125,7 +1127,7 @@ class SRSConnectionManager:
                 output_file = os.path.join(output_dir, f"{stream_code}.{res_name}.mp4")
                 
                 cmd = [
-                    'ffmpeg',
+                    self.ffmpeg_binary,
                     '-i', source_file,
                     '-vf', f"scale={config['width']}:{config['height']}:force_original_aspect_ratio=decrease,pad={config['width']}:{config['height']}:(ow-iw)/2:(oh-ih)/2",
                     '-c:v', 'libx264',
@@ -1157,3 +1159,24 @@ class SRSConnectionManager:
                 self.logger.error(f"Timeout exporting {res_name} version for {stream_code}")
             except Exception as e:
                 self.logger.exception(f"Error exporting {res_name} version: {e}")
+    
+    def _resolve_ffmpeg_binary(self, preferred: Optional[str]) -> str:
+        """确定 ffmpeg 可执行文件路径"""
+        candidate = (preferred or "./objs/ffmpeg/bin/ffmpeg").strip()
+
+        if candidate and candidate != 'ffmpeg':
+            if os.path.sep in candidate or candidate.startswith('.'):
+                candidate_path = os.path.abspath(candidate)
+            else:
+                candidate_path = candidate
+
+            if os.path.exists(candidate_path):
+                return candidate_path
+
+            self.logger.warn(f"Preferred ffmpeg binary '{candidate}' not found, falling back to system ffmpeg")
+
+        system_binary = shutil.which('ffmpeg')
+        if system_binary:
+            return system_binary
+
+        return 'ffmpeg'

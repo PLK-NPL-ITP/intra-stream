@@ -143,6 +143,8 @@ srs_error_t SrsPythonAddons::reload_from_config()
         return err;
     }
 
+    std::vector<std::string> configure_args = build_configure_args();
+
     for (size_t i = 0; i < nodes.size(); ++i) {
         SrsConfDirective *node = nodes[i];
 
@@ -164,12 +166,15 @@ srs_error_t SrsPythonAddons::reload_from_config()
         }
 
         std::string args_line = config_->get_python_addon_args(node);
-        std::vector<std::string> args = split_args(args_line);
+    std::vector<std::string> args = split_args(args_line);
+    std::vector<std::string> combined_args = args;
+    // Always append the configure summary so every addon sees the entire configure context.
+    combined_args.insert(combined_args.end(), configure_args.begin(), configure_args.end());
 
         std::vector<std::string> argv;
         argv.push_back(python_bin_);
         argv.push_back(script_path);
-        argv.insert(argv.end(), args.begin(), args.end());
+    argv.insert(argv.end(), combined_args.begin(), combined_args.end());
 
         SrsProcess *process = new SrsProcess();
         process->set_work_dir(work_dir);
@@ -181,13 +186,22 @@ srs_error_t SrsPythonAddons::reload_from_config()
             return srs_error_wrap(err, "init python addon %s", script_path.c_str());
         }
 
-        srs_info("python_addons: addon #%d script=%s, work_dir=%s", (int)i, script_path.c_str(), work_dir.c_str());
+        std::string combined_args_line = join_args(combined_args);
+        if (combined_args_line.empty()) {
+            srs_info("python_addons: addon #%d script=%s, work_dir=%s", (int)i, script_path.c_str(), work_dir.c_str());
+        } else {
+            srs_info("python_addons: addon #%d script=%s, work_dir=%s, args=%s", (int)i, script_path.c_str(), work_dir.c_str(), combined_args_line.c_str());
+        }
 
         SrsPythonAddonEntry addon;
         addon.script_path = script_path;
         addon.work_dir = work_dir;
-        addon.args = args;
-        addon.summary = srs_fmt_sprintf("%s %s", script_path.c_str(), args_line.c_str());
+        addon.args = combined_args;
+        if (combined_args_line.empty()) {
+            addon.summary = script_path;
+        } else {
+            addon.summary = srs_fmt_sprintf("%s %s", script_path.c_str(), combined_args_line.c_str());
+        }
         addon.process = process;
         addons_.push_back(addon);
     }
@@ -233,6 +247,61 @@ void SrsPythonAddons::stop_processes(bool fast)
             addons_[i].process->stop();
         }
     }
+}
+
+std::vector<std::string> SrsPythonAddons::build_configure_args()
+{
+    std::vector<std::string> out;
+
+    std::string configure_line;
+#ifdef SRS_CONFIGURE
+    configure_line = SRS_CONFIGURE;
+#endif
+
+    if (configure_line.empty()) {
+        return out;
+    }
+
+    std::vector<std::string> tokens = split_args(configure_line);
+    out.reserve(tokens.size());
+
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        std::string token = tokens.at(i);
+        if (token.empty()) {
+            continue;
+        }
+
+        std::string suffix = token;
+        if (suffix.rfind("--", 0) == 0) {
+            suffix.erase(0, 2);
+        } else if (!suffix.empty() && suffix.at(0) == '-') {
+            suffix.erase(0, 1);
+        }
+
+        if (suffix.empty()) {
+            suffix = token;
+        }
+
+        out.push_back(std::string("--configure-") + suffix);
+    }
+
+    return out;
+}
+
+std::string SrsPythonAddons::join_args(const std::vector<std::string> &args)
+{
+    if (args.empty()) {
+        return std::string();
+    }
+
+    std::ostringstream ss;
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (i > 0) {
+            ss << ' ';
+        }
+        ss << args.at(i);
+    }
+    return ss.str();
 }
 
 std::vector<std::string> SrsPythonAddons::split_args(const std::string &line)

@@ -242,6 +242,11 @@ class SRSLogger:
             # Prevent propagation to root logger
             self.logger.propagate = False
             
+            # Setup Global Exception Hook Handler
+            sys.excepthook = lambda exc_type, exc_value, exc_traceback: (
+                self.logger.error("Uncaught exception:", exc_info=(exc_type, exc_value, exc_traceback))
+            )
+
             self.info(f"SRS Python logger initialized with config: {self.config}")
             
         except Exception as e:
