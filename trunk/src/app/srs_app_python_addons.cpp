@@ -11,6 +11,9 @@
 #include <sstream>
 
 #include <signal.h>
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 
 #include <srs_app_config.hpp>
 #include <srs_app_process.hpp>
@@ -21,6 +24,9 @@
 SrsPythonAddons::SrsPythonAddonEntry::SrsPythonAddonEntry()
 {
     process = NULL;
+    restart_attempts = 0;
+    next_start_at = 0;
+    disabled = false;
 }
 
 SrsPythonAddons::SrsPythonAddons()
@@ -29,6 +35,10 @@ SrsPythonAddons::SrsPythonAddons()
     trd_ = new SrsDummyCoroutine();
     running_ = false;
     tick_interval_ = 1 * SRS_UTIME_SECONDS;
+    restart_limit_ = 3;
+    restart_always_ = false;
+    retry_interval_ = 5 * SRS_UTIME_SECONDS;
+    failure_exit_ = true;
 }
 
 SrsPythonAddons::~SrsPythonAddons()
@@ -96,15 +106,69 @@ srs_error_t SrsPythonAddons::cycle()
             break;
         }
 
+        srs_utime_t now = srs_time_now_cached();
+
         for (std::vector<SrsPythonAddonEntry>::iterator it = addons_.begin(); it != addons_.end(); ++it) {
             SrsPythonAddonEntry &addon = *it;
 
-            if ((err = addon.process->start()) != srs_success) {
-                return srs_error_wrap(err, "start python addon %s", addon.script_path.c_str());
+            if (addon.disabled || !addon.process) {
+                continue;
             }
 
-            if ((err = addon.process->cycle()) != srs_success) {
-                return srs_error_wrap(err, "cycle python addon %s", addon.script_path.c_str());
+            if (!addon.process->started()) {
+                if (addon.next_start_at > now) {
+                    continue;
+                }
+
+                // If this is a scheduled retry (not the very first start), log a succinct restart message.
+                if (addon.restart_attempts > 0 || addon.next_start_at != 0) {
+                    srs_warn("python_addons: restarting addon %s now (attempt=%u)", addon.script_path.c_str(), addon.restart_attempts);
+                }
+
+                if ((err = addon.process->start()) != srs_success) {
+                    return srs_error_wrap(err, "start python addon %s", addon.script_path.c_str());
+                }
+            }
+
+            bool was_running = addon.process->started();
+
+            if (was_running) {
+                if ((err = addon.process->cycle()) != srs_success) {
+                    return srs_error_wrap(err, "cycle python addon %s", addon.script_path.c_str());
+                }
+            }
+
+            if (was_running && !addon.process->started()) {
+                // A run just terminated. Decide whether to schedule a restart.
+                addon.restart_attempts += 1;
+
+                // If there's a limit and we've reached it, don't schedule another restart.
+                if (!restart_always_ && restart_limit_ >= 0 && (int)addon.restart_attempts > restart_limit_) {
+                    srs_error("python_addons: addon %s exceeded restart limit %d", addon.script_path.c_str(), restart_limit_);
+                    if (failure_exit_) {
+                        srs_error("python_addons: terminating SRS due to addon restart exhaustion");
+                        // Prefer SIGTERM over SIGKILL.
+                        ::raise(SIGTERM);
+                        return srs_error_new(ERROR_PYTHON_ADDONS_CONFIG, "python addon restart limit reached");
+                    }
+                    addon.disabled = true;
+                    addon.next_start_at = 0;
+                    continue;
+                }
+
+                // Schedule next restart after retry_interval_ and log summary of attempt and delay.
+                addon.next_start_at = srs_time_now_cached() + retry_interval_;
+                double retry_seconds = (double)retry_interval_ / SRS_UTIME_SECONDS;
+                if (restart_always_ || restart_limit_ < 0) {
+                    srs_warn("python_addons: addon %s exited, will retry in %.02fs (attempt=%u)", addon.script_path.c_str(), retry_seconds, addon.restart_attempts);
+                } else {
+                    srs_warn("python_addons: addon %s exited, will retry in %.02fs (attempt=%u/%d)", addon.script_path.c_str(), retry_seconds, addon.restart_attempts, restart_limit_);
+                }
+                continue;
+            }
+
+            if (addon.process->started()) {
+                addon.next_start_at = 0;
             }
         }
 
@@ -143,6 +207,20 @@ srs_error_t SrsPythonAddons::reload_from_config()
         return err;
     }
 
+    int restart_conf = config_->get_python_addons_restart();
+    restart_limit_ = restart_conf;
+    restart_always_ = (restart_conf < 0);
+    retry_interval_ = config_->get_python_addons_retry_interval();
+    if (retry_interval_ < 0) {
+        retry_interval_ = 0;
+    }
+    failure_exit_ = config_->get_python_addons_failure_exit();
+
+    srs_info("python_addons: restart=%s, retry_interval=%.02f s, failure_exit=%s",
+             (restart_always_ ? "always" : srs_strconv_format_int(restart_limit_).c_str()),
+             (double)retry_interval_ / SRS_UTIME_SECONDS,
+             failure_exit_ ? "on" : "off");
+
     std::vector<std::string> configure_args = build_configure_args();
 
     for (size_t i = 0; i < nodes.size(); ++i) {
@@ -165,15 +243,15 @@ srs_error_t SrsPythonAddons::reload_from_config()
             work_dir = resolve_path(base_dir_, work_dir);
         }
 
-        std::string args_line = config_->get_python_addon_args(node);
+    std::string args_line = config_->get_python_addon_args(node);
     std::vector<std::string> args = split_args(args_line);
     std::vector<std::string> combined_args = args;
     // Always append the configure summary so every addon sees the entire configure context.
     combined_args.insert(combined_args.end(), configure_args.begin(), configure_args.end());
 
-        std::vector<std::string> argv;
-        argv.push_back(python_bin_);
-        argv.push_back(script_path);
+    std::vector<std::string> argv;
+    argv.push_back(python_bin_);
+    argv.push_back(script_path);
     argv.insert(argv.end(), combined_args.begin(), combined_args.end());
 
         SrsProcess *process = new SrsProcess();

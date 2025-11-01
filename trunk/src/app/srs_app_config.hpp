@@ -312,6 +312,9 @@ public:
     virtual std::string get_python_addon_script(SrsConfDirective *conf) = 0;
     virtual std::string get_python_addon_args(SrsConfDirective *conf) = 0;
     virtual std::string get_python_addon_work_dir(SrsConfDirective *conf) = 0;
+    virtual int get_python_addons_restart() = 0;
+    virtual srs_utime_t get_python_addons_retry_interval() = 0;
+    virtual bool get_python_addons_failure_exit() = 0;
 
 public:
     // RTMP config
@@ -841,6 +844,9 @@ public:
     virtual std::string get_python_addon_script(SrsConfDirective *conf);
     virtual std::string get_python_addon_args(SrsConfDirective *conf);
     virtual std::string get_python_addon_work_dir(SrsConfDirective *conf);
+    virtual int get_python_addons_restart();
+    virtual srs_utime_t get_python_addons_retry_interval();
+    virtual bool get_python_addons_failure_exit();
     // For tcmalloc, get the release rate.
     virtual double tcmalloc_release_rate();
     // Thread pool section.

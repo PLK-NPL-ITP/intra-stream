@@ -28,6 +28,9 @@ private:
         std::vector<std::string> args;
         std::string summary;
         SrsProcess *process;
+        uint32_t restart_attempts;
+        srs_utime_t next_start_at;
+        bool disabled;
 
         SrsPythonAddonEntry();
     };
@@ -40,6 +43,10 @@ private:
     std::string python_bin_;
     std::vector<SrsPythonAddonEntry> addons_;
     srs_utime_t tick_interval_;
+    int restart_limit_;
+    bool restart_always_;
+    srs_utime_t retry_interval_;
+    bool failure_exit_;
 
 public:
     SrsPythonAddons();

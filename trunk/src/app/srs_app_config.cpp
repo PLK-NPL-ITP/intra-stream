@@ -22,6 +22,7 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <regex.h>
 #include <vector>
 using namespace std;
@@ -1968,7 +1969,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; conf && i < (int)conf->directives_.size(); i++) {
             SrsConfDirective *obj = conf->at(i);
             string n = obj->name_;
-            if (n != "enabled" && n != "addon") {
+            if (n != "enabled" && n != "addon" && n != "restart" && n != "retry_interval" && n != "failure_exit") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal python_addons.%s", n.c_str());
             }
 
@@ -3014,6 +3015,82 @@ string SrsConfig::get_python_addon_work_dir(SrsConfDirective *conf)
     }
 
     return value->arg0();
+}
+
+int SrsConfig::get_python_addons_restart()
+{
+    static const int DEFAULT = 3;
+
+    SrsConfDirective *conf = root_->get("python_addons");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *value = conf->get("restart");
+    if (!value || value->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    std::string raw = value->arg0();
+    std::string lower = raw;
+    for (size_t i = 0; i < lower.size(); ++i) {
+        lower[i] = (char)tolower((unsigned char)lower[i]);
+    }
+
+    if (lower == "always") {
+        return -1;
+    }
+
+    int parsed = ::atoi(lower.c_str());
+    if (parsed <= 0) {
+        return DEFAULT;
+    }
+
+    return parsed;
+}
+
+srs_utime_t SrsConfig::get_python_addons_retry_interval()
+{
+    static const srs_utime_t DEFAULT = 5 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective *conf = root_->get("python_addons");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *value = conf->get("retry_interval");
+    if (!value || value->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    double seconds = ::atof(value->arg0().c_str());
+    if (seconds <= 0) {
+        return DEFAULT;
+    }
+
+    srs_utime_t interval = (srs_utime_t)(seconds * SRS_UTIME_SECONDS);
+    if (interval <= 0) {
+        return DEFAULT;
+    }
+
+    return interval;
+}
+
+bool SrsConfig::get_python_addons_failure_exit()
+{
+    static bool DEFAULT = true;
+
+    SrsConfDirective *conf = root_->get("python_addons");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *value = conf->get("failure_exit");
+    if (!value || value->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(value->arg0());
 }
 
 // TODO: FIXME: Support reload.
