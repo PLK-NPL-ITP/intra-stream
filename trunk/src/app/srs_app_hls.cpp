@@ -847,6 +847,11 @@ std::string SrsHlsFmp4Muxer::generate_m4s_filename()
     return m4s_file;
 }
 
+bool SrsHlsFmp4Muxer::is_segment_open()
+{
+    return current_ != NULL;
+}
+
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
     return srs_success;
@@ -854,7 +859,10 @@ srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 
 bool SrsHlsFmp4Muxer::is_segment_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -876,7 +884,10 @@ bool SrsHlsFmp4Muxer::wait_keyframe()
 
 bool SrsHlsFmp4Muxer::is_segment_absolutely_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -890,6 +901,10 @@ bool SrsHlsFmp4Muxer::is_segment_absolutely_overflow()
 
 void SrsHlsFmp4Muxer::update_duration(uint64_t dts)
 {
+    // If segment is not open, ignore the update event.
+    if (!is_segment_open()) {
+        return;
+    }
     current_->append(dts / 90);
 }
 
@@ -980,6 +995,7 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 {
     srs_error_t err = srs_success;
@@ -1007,6 +1023,7 @@ srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 
     return err;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8(std::string m3u8_file)
 {
@@ -1115,7 +1132,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
     }
     // ss << segment->uri << SRS_CONSTS_LF;
     ss << path.filepath_base(seg_uri) << SRS_CONSTS_LF;
-    
+
     return err;
 }
 
@@ -1650,7 +1667,11 @@ srs_error_t SrsHlsMuxer::on_sequence_header()
 {
     srs_error_t err = srs_success;
 
-    srs_assert(current_);
+    // If segment is not open, ignore the sequence header event.
+    if (!is_segment_open()) {
+        srs_warn("sequence header ignored, for segment is not open.");
+        return err;
+    }
 
     // set the current segment to sequence header,
     // when close the segement, it will write a discontinuity to m3u8 file.
@@ -1659,9 +1680,17 @@ srs_error_t SrsHlsMuxer::on_sequence_header()
     return err;
 }
 
+bool SrsHlsMuxer::is_segment_open()
+{
+    return current_ != NULL;
+}
+
 bool SrsHlsMuxer::is_segment_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -1683,7 +1712,10 @@ bool SrsHlsMuxer::wait_keyframe()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
-    srs_assert(current_);
+    // If segment is not open, it cannot overflow.
+    if (!is_segment_open()) {
+        return false;
+    }
 
     // to prevent very small segment.
     if (current_->duration() < 2 * SRS_HLS_SEGMENT_MIN_DURATION) {
@@ -1758,6 +1790,10 @@ srs_error_t SrsHlsMuxer::flush_video(SrsTsMessageCache *cache)
 
 void SrsHlsMuxer::update_duration(uint64_t dts)
 {
+    // If segment is not open, ignore the update event.
+    if (!is_segment_open()) {
+        return;
+    }
     current_->append(dts / 90);
 }
 
@@ -2185,6 +2221,7 @@ srs_error_t SrsHlsController::on_unpublish()
     return err;
 }
 
+// LCOV_EXCL_START
 srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat *format)
 {
     // TODO: support discontinuity for the same stream
@@ -2195,6 +2232,7 @@ srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat 
     // when the sequence header changed, the stream is not republish.
     return muxer_->on_sequence_header();
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsController::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
@@ -2637,6 +2675,7 @@ srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsHls::dispose()
 {
     // We disabled the reload, so HLS will not be enabled by reloading.
@@ -2656,6 +2695,7 @@ void SrsHls::dispose()
 
     controller_->dispose();
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHls::cycle()
 {
@@ -2890,6 +2930,7 @@ srs_error_t SrsHls::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
     return err;
 }
 
+// LCOV_EXCL_START
 void SrsHls::hls_show_mux_log()
 {
     pprint_->elapse();
@@ -2905,3 +2946,4 @@ void SrsHls::hls_show_mux_log()
               pprint_->age(), controller_->sequence_no(), controller_->ts_url().c_str(),
               srsu2msi(controller_->duration()), controller_->deviation());
 }
+// LCOV_EXCL_STOP

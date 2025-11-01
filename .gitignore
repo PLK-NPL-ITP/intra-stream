@@ -28,11 +28,12 @@
 
 # Apple-specific garbage files.
 .AppleDouble
-
 .idea
+.cursor/
 .DS_Store
 *.heap
 *.exe
+
 
 cmake-build-debug
 /build/

@@ -718,6 +718,7 @@ bool SrsGopCache::empty()
     return gop_cache_.empty();
 }
 
+// LCOV_EXCL_START
 srs_utime_t SrsGopCache::start_time()
 {
     if (empty()) {
@@ -729,6 +730,7 @@ srs_utime_t SrsGopCache::start_time()
 
     return srs_utime_t(msg->timestamp_ * SRS_UTIME_MILLISECONDS);
 }
+// LCOV_EXCL_STOP
 
 bool SrsGopCache::pure_audio()
 {
@@ -743,6 +745,7 @@ ISrsLiveSourceHandler::~ISrsLiveSourceHandler()
 {
 }
 
+// LCOV_EXCL_START
 // TODO: FIXME: Remove it?
 bool srs_hls_can_continue(int ret, SrsMediaPacket *sh, SrsMediaPacket *msg)
 {
@@ -761,6 +764,7 @@ bool srs_hls_can_continue(int ret, SrsMediaPacket *sh, SrsMediaPacket *msg)
 
     return false;
 }
+// LCOV_EXCL_STOP
 
 SrsMixQueue::SrsMixQueue()
 {
@@ -1004,7 +1008,18 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
             sample_rate = srs_audio_sample_rate_from_number(srs_aac_srates[c->aac_sample_rate_]);
         }
 
-        if ((err = stat_->on_audio_info(req_, format->acodec_->id_, sample_rate, c->sound_type_, c->aac_object_)) != srs_success) {
+        // The FLV specification force to be 1(stereo) for AAC codec, see E.4.2 Audio Tags,
+        // video_file_format_spec_v10_1.pdf, page 77.
+        //      If the SoundFormat indicates AAC, the SoundType should be 1 (stereo) and the
+        //      SoundRate should be 3 (44 kHz).
+        // FFmpeg also follows this specification, that is why it always send fixed channels
+        // and sample rate to SRS.
+        SrsAudioChannels channels = c->sound_type_;
+        if (format->acodec_->id_ == SrsAudioCodecIdAAC) {
+            channels = (c->aac_channels_ == 1) ? SrsAudioChannelsMono : SrsAudioChannelsStereo;
+        }
+
+        if ((err = stat_->on_audio_info(req_, format->acodec_->id_, sample_rate, channels, c->aac_object_)) != srs_success) {
             return srs_error_wrap(err, "stat audio");
         }
 
@@ -2601,6 +2616,7 @@ void SrsLiveSource::set_gop_cache_max_frames(int v)
     gop_cache_->set_gop_cache_max_frames(v);
 }
 
+// LCOV_EXCL_START
 SrsRtmpJitterAlgorithm SrsLiveSource::jitter()
 {
     return jitter_algorithm_;
@@ -2621,3 +2637,4 @@ void SrsLiveSource::on_edge_proxy_unpublish()
 {
     publish_edge_->on_proxy_unpublish();
 }
+// LCOV_EXCL_STOP

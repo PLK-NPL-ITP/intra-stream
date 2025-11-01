@@ -5,22 +5,22 @@
 //
 #include <srs_utest_ai24.hpp>
 
-#include <srs_app_rtc_source.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_rtc_rtcp.hpp>
-#include <srs_protocol_sdp.hpp>
-#include <srs_kernel_packet.hpp>
-#include <srs_kernel_codec.hpp>
-#include <srs_app_hls.hpp>
-#include <srs_utest_manual_mock.hpp>
-#include <srs_utest_manual_kernel.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_http_hooks.hpp>
-#include <srs_app_utility.hpp>
-#include <srs_kernel_utility.hpp>
-#include <srs_protocol_utility.hpp>
 #include <srs_app_fragment.hpp>
+#include <srs_app_hls.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_server.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_kernel_codec.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_packet.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_sdp.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -389,7 +389,7 @@ VOID TEST(ParsedPacketTest, CopyParsedVideoPacket)
 
     // Add sample data
     uint8_t sample_data[] = {0x65, 0x88, 0x84, 0x00};
-    HELPER_EXPECT_SUCCESS(packet.add_sample((char*)sample_data, sizeof(sample_data)));
+    HELPER_EXPECT_SUCCESS(packet.add_sample((char *)sample_data, sizeof(sample_data)));
 
     // Copy the packet
     SrsParsedVideoPacket *copied = packet.copy();
@@ -517,7 +517,7 @@ VOID TEST(DvrAsyncCallOnHlsTest, CallWithMultipleHooks)
 // Mock HLS muxer for testing SrsHlsController::reap_segment
 class MockHlsMuxerForReapSegment : public ISrsHlsMuxer
 {
-SRS_DECLARE_PRIVATE:
+    SRS_DECLARE_PRIVATE:
     int segment_close_count_;
     int segment_open_count_;
     int flush_video_count_;
@@ -659,7 +659,7 @@ VOID TEST(HlsControllerTest, ReapSegmentSuccess)
 // Mock HLS segment for testing do_segment_close
 class MockHlsSegmentForSegmentClose : public SrsHlsSegment
 {
-SRS_DECLARE_PRIVATE:
+    SRS_DECLARE_PRIVATE:
     srs_error_t rename_error_;
     srs_utime_t mock_duration_;
     bool rename_called_;
@@ -851,8 +851,8 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentWithEncryption)
 
     // Create mock segment
     MockHlsM4sSegment segment;
-    segment.sequence_no_ = 10; // 10 % 5 == 0, so key should be written
-    segment.is_sequence_header_ = true; // Should write discontinuity
+    segment.sequence_no_ = 10;                         // 10 % 5 == 0, so key should be written
+    segment.is_sequence_header_ = true;                // Should write discontinuity
     segment.duration_ = 5000 * SRS_UTIME_MILLISECONDS; // 5 seconds
     segment.fullpath_ = "/path/to/segment-[duration].m4s";
 
@@ -885,7 +885,7 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentWithEncryption)
 // Mock HLS segment for testing SrsHlsMuxer::do_refresh_m3u8_segment
 class MockHlsSegmentForRefreshM3u8 : public SrsHlsSegment
 {
-SRS_DECLARE_PRIVATE:
+    SRS_DECLARE_PRIVATE:
     bool is_sequence_header_;
     srs_utime_t duration_;
 
@@ -931,8 +931,8 @@ VOID TEST(HlsMuxerTest, DoRefreshM3u8SegmentWithEncryption)
 
     // Create mock segment
     MockHlsSegmentForRefreshM3u8 segment;
-    segment.sequence_no_ = 10; // 10 % 5 == 0, so key should be written
-    segment.set_is_sequence_header(true); // Should write discontinuity
+    segment.sequence_no_ = 10;                           // 10 % 5 == 0, so key should be written
+    segment.set_is_sequence_header(true);                // Should write discontinuity
     segment.set_duration(5000 * SRS_UTIME_MILLISECONDS); // 5 seconds
 
     // Call do_refresh_m3u8_segment
@@ -1051,4 +1051,66 @@ VOID TEST(ServerTest, InitializeStAsprocessWithPpid1)
 
     // Call initialize_st - should fail because asprocess is true and ppid is 1
     HELPER_EXPECT_FAILED(server.initialize_st());
+}
+
+// Test: srs_hex_encode_to_string_lowercase converts bytes to lowercase hex string
+VOID TEST(KernelUtilityTest, HexEncodeToStringLowercase)
+{
+    // Test normal case: convert bytes to lowercase hex
+    uint8_t src[] = {0xAB, 0xCD, 0xEF, 0x12, 0x34};
+    char des[11] = {0}; // 5 bytes * 2 chars + 1 null terminator
+
+    char *result = srs_hex_encode_to_string_lowercase(des, src, 5);
+
+    EXPECT_TRUE(result != NULL);
+    EXPECT_STREQ("abcdef1234", des);
+
+    // Test NULL source
+    EXPECT_TRUE(NULL == srs_hex_encode_to_string_lowercase(des, NULL, 5));
+
+    // Test zero length
+    EXPECT_TRUE(NULL == srs_hex_encode_to_string_lowercase(des, src, 0));
+
+    // Test NULL destination
+    EXPECT_TRUE(NULL == srs_hex_encode_to_string_lowercase(NULL, src, 5));
+}
+
+// Test: srs_strings_dumps_hex(const std::string &str) dumps string to hex format
+VOID TEST(KernelUtilityTest, StringsDumpsHexWithString)
+{
+    // Test normal case: dump string to hex
+    std::string input = "ABC";
+    std::string hex_result = srs_strings_dumps_hex(input);
+
+    // Should contain hex values for 'A' (0x41), 'B' (0x42), 'C' (0x43)
+    EXPECT_TRUE(hex_result.find("41") != std::string::npos);
+    EXPECT_TRUE(hex_result.find("42") != std::string::npos);
+    EXPECT_TRUE(hex_result.find("43") != std::string::npos);
+
+    // Test empty string
+    std::string empty_input = "";
+    std::string empty_result = srs_strings_dumps_hex(empty_input);
+    EXPECT_TRUE(empty_result.empty());
+}
+
+// Test: srs_is_boolean checks if string is "true" or "false"
+VOID TEST(AppUtilityTest, IsBoolean)
+{
+    // Test "true" string
+    EXPECT_TRUE(srs_is_boolean("true"));
+
+    // Test "false" string
+    EXPECT_TRUE(srs_is_boolean("false"));
+
+    // Test non-boolean strings
+    EXPECT_FALSE(srs_is_boolean("True"));
+    EXPECT_FALSE(srs_is_boolean("False"));
+    EXPECT_FALSE(srs_is_boolean("TRUE"));
+    EXPECT_FALSE(srs_is_boolean("FALSE"));
+    EXPECT_FALSE(srs_is_boolean("yes"));
+    EXPECT_FALSE(srs_is_boolean("no"));
+    EXPECT_FALSE(srs_is_boolean("1"));
+    EXPECT_FALSE(srs_is_boolean("0"));
+    EXPECT_FALSE(srs_is_boolean(""));
+    EXPECT_FALSE(srs_is_boolean("random"));
 }
