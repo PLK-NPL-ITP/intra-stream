@@ -469,28 +469,29 @@ _default: server utest
 
 help:
 	@echo "\$(GREEN)Usage: make <help>|<clean>|<destroy>|<server>|<utest>|<install>|<uninstall>\$(BLACK)"
-	@echo "     \$(YELLOW)help\$(BLACK)            Display this help menu"
-	@echo "     \$(YELLOW)clean\$(BLACK)           Cleanup projects and all depends"
-	@echo "     \$(YELLOW)minimize\$(BLACK)        Remove all unnecessary files to minimize the object size"
-	@echo "     \$(YELLOW)destroy\$(BLACK)         Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM} and all depends"
-	@echo "     \$(YELLOW)server\$(BLACK)          Build the srs and other modules in main"
-	@echo "     \$(YELLOW)utest\$(BLACK)           Build the utest for srs"
-	@echo "     \$(YELLOW)install\$(BLACK)         Install srs to the prefix path"
-	@echo "     \$(YELLOW)uninstall\$(BLACK)       Uninstall srs from prefix path"
+	@echo "     \$(YELLOW)help\$(BLACK)              Display this help menu"
+	@echo "     \$(YELLOW)clean\$(BLACK)             Cleanup projects and all depends"
+	@echo "     \$(YELLOW)destroy\$(BLACK)           Cleanup all files for this platform in ${SRS_OBJS}/${SRS_PLATFORM} and all depends"
+	@echo "     \$(YELLOW)server\$(BLACK)            Build the srs and other modules in main"
+	@echo "     \$(YELLOW)utest\$(BLACK)             Build the utest for srs"
+	@echo "     \$(YELLOW)install\$(BLACK)           Install srs to the prefix path"
+	@echo "     \$(YELLOW)uninstall\$(BLACK)         Uninstall srs from prefix path"
 	@echo "\$(GREEN)To rebuild special module:\$(BLACK)"
-	@echo "     \$(YELLOW)st\$(BLACK)              Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
-	@echo "     \$(YELLOW)ffmpeg\$(BLACK)          Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit"
+	@echo "     \$(YELLOW)st\$(BLACK)                Rebuild st-srs in ${SRS_OBJS}/${SRS_PLATFORM}/st-srs"
+	@echo "     \$(YELLOW)ffmpeg\$(BLACK)            Rebuild ffmpeg in ${SRS_OBJS}/${SRS_PLATFORM}/ffmpeg-4-fit"
 	@echo "\$(GREEN)To reconfigure special depends:\$(BLACK)"
-	@echo "     \$(YELLOW)clean_srs\$(BLACK)       Remove the srs build cache."
-	@echo "     \$(YELLOW)clean_openssl\$(BLACK)   Remove the openssl cache."
-	@echo "     \$(YELLOW)clean_srt\$(BLACK)       Remove the srt cache."
-	@echo "     \$(YELLOW)clean_srtp2\$(BLACK)     Remove the libsrtp2 cache."
-	@echo "     \$(YELLOW)clean_opus\$(BLACK)      Remove the opus cache."
-	@echo "     \$(YELLOW)clean_ffmpeg\$(BLACK)    Remove the FFmpeg cache."
-	@echo "     \$(YELLOW)clean_st\$(BLACK)        Remove the ST cache."
+	@echo "     \$(YELLOW)clean_srs\$(BLACK)         Remove the srs build cache."
+	@echo "     \$(YELLOW)clean_openssl\$(BLACK)     Remove the openssl cache."
+	@echo "     \$(YELLOW)clean_srt\$(BLACK)         Remove the srt cache."
+	@echo "     \$(YELLOW)clean_srtp2\$(BLACK)       Remove the libsrtp2 cache."
+	@echo "     \$(YELLOW)clean_opus\$(BLACK)        Remove the opus cache."
+	@echo "     \$(YELLOW)clean_ffmpeg\$(BLACK)      Remove the FFmpeg cache."
+	@echo "     \$(YELLOW)clean_st\$(BLACK)          Remove the ST cache."
+	@echo "     \$(YELLOW)clean_python_venv\$(BLACK) Remove the python virtual env cache."
 	@echo "\$(GREEN)For example:\$(BLACK)"
 	@echo "     make"
 	@echo "     make help"
+	@echo "     sudo make install"
 
 clean: clean_srs
 
@@ -503,10 +504,6 @@ destroy:
 		rm -rf objs/python_venv; \
 	fi
 	@echo "\$(YELLOW)Please re-configure all depends in this platform by: ./configure\$(BLACK)"
-
-minimize:
-	@(cd ${SRS_OBJS} && rm -rf ${SRS_PLATFORM} && rm -rf _srs_build_summary.sh srs_auto_headers.hpp Makefile src/ utest/ research/ logs/)
-    @echo "\$(YELLOW)Re-configure SRS and all depends is required next time by: ./configure\$(BLACK)"
 
 clean_openssl:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/openssl/
@@ -537,6 +534,10 @@ clean_st:
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/st/
 	@rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/st-srs/
 	@echo "\$(GREEN)Please rebuild ST by: ./configure\$(BLACK)"
+
+clean_python_venv:
+	@rm -rf ${SRS_OBJS}/python_venv
+	@echo "\$(GREEN)Please rebuild python virtual env by: ./configure\$(BLACK)"
 
 st:
 	@rm -f ${SRS_OBJS}/srs ${SRS_OBJS}/srs_utest
@@ -855,7 +856,8 @@ fi
 # next step
 #####################################################################################
 echo ""
-echo "You can build SRS:"
-echo "\" make \" to build the SRS server"
+echo -e "${GREEN}You can build Intra-Stream through Makefile:${BLACK}"
+echo "\" make \" to build the Intra-Stream server"
 echo "\" make help \" to get some help"
-
+echo "make" | xclip -sel clip -r
+echo -e "${GREEN}'make' Command has been copied to your clipboard, you can paste it by Ctrl+Shift+V${BLACK}"

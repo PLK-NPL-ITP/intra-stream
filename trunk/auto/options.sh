@@ -154,7 +154,7 @@ function apply_system_options() {
         ret=$?
         echo -e "${RED}GCC is required for early configure checks that run before the full dependency scan.${BLACK}"
         echo -e "${RED}Additional tools may also be missing; review manually if needed:${BLACK}"
-        echo -e "${RED}  required tools: perl gcc g++ make patch unzip automake pkg-config which${BLACK}"
+        echo -e "${RED}  required tools: perl gcc g++ make patch unzip automake pkg-config which xclip${BLACK}"
         echo -e "${RED}  optional tools for SRT (if enabled): tclsh cmake${BLACK}"
         echo -e "${RED}  optional tools for python addons (if enabled): python3.13 python3.13-venv${BLACK}"
         echo -e "${RED}Install gcc and rerun configure.${BLACK}"

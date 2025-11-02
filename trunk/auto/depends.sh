@@ -81,7 +81,7 @@ check_command() {
 }
 
 # Check required tools
-echo "Checking required tools: perl gcc g++ make patch unzip automake pkg-config which"
+echo "Checking required tools: perl gcc g++ make patch unzip automake pkg-config which xclip"
 check_command "perl --version" "perl" "perl" "perl" "perl"
 check_command "gcc --version" "gcc" "gcc" "gcc" "gcc"
 check_command "g++ --version" "g++" "g++" "gcc-c++" "gcc"
@@ -91,6 +91,7 @@ check_command "unzip -v" "unzip" "unzip" "unzip" "unzip"
 check_command "automake --version" "automake" "automake" "automake" "automake"
 check_command "pkg-config --version" "pkg-config" "pkg-config" "pkgconfig" "pkg-config"
 check_command "which ls" "which" "which" "which" "which"
+check_command "xclip -version" "xclip" "xclip" "xclip" "xclip"
 
 # Check optional tools for valgrind
 if [[ $SRS_VALGRIND == YES ]]; then

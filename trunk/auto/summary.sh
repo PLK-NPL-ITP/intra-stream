@@ -50,8 +50,13 @@ echo -e "     |     ${SrsValgrindSummaryColor}About VALGRIND, please read https:
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/install\${BLACK}"
 
-echo "You can:"
-echo "      ./objs/srs -c ${SRS_DEFAULT_CONFIG}"
-echo "                  to start the srs server, with config ${SRS_DEFAULT_CONFIG}."
+echo "You can run command:"
+echo "     ./objs/srs -c conf/intra-stream.conf"
+echo "     to start the Intra-Stream server in console, with config conf/intra-stream.conf."
+echo "./objs/srs -c conf/intra-stream.conf" | xclip -sel clip -r
+echo -e "     \${GREEN}COMMAND has been automatically copied to clipboard, you can paste it by Ctrl+Shift+V\${BLACK}"
+echo ""
+echo "     ./objs/srs -c conf/intra-stream_daemon.conf"
+echo "     to start the Intra-Stream server in daemon, with config conf/intra-stream.conf."
 END
 
