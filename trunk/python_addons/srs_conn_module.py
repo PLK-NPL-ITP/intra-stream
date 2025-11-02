@@ -162,8 +162,8 @@ class SRSConnectionManager:
         self.db = db
         self.logger = get_logger()
         self.ffmpeg_binary = self._resolve_ffmpeg_binary(ffmpeg_binary)
-        self.api_url = "http://python_stats:wMePq3ahpoLRzgsVg7BY9eE82uuJHT0YukD2ZE1JfMY2RjP4e6QnUaKg3V9x5s9M@localhost:1985/api/v1/summaries"
-        self.streams_api_url = "http://python_stats:wMePq3ahpoLRzgsVg7BY9eE82uuJHT0YukD2ZE1JfMY2RjP4e6QnUaKg3V9x5s9M@localhost:1985/api/v1/streams/"
+        self.api_url = "http://127.0.0.1:1985/api/v1/summaries"
+        self.streams_api_url = "http://127.0.0.1:1985/api/v1/streams/"
         
         # 任务管理器
         self.task_manager = TaskManager()
@@ -669,7 +669,7 @@ class SRSConnectionManager:
                         self._capture_stream_snapshot(stream_code)
                         
                         # 记录直播开始前已存在的segment文件
-                        recording_dir = Path(f"./streams_record/{stream_code}")
+                        recording_dir = Path(f"./streams_records/{stream_code}")
                         if recording_dir.exists():
                             existing_segments = {seg.name for seg in recording_dir.glob("*.mp4")}
                             if existing_segments:
@@ -832,7 +832,7 @@ class SRSConnectionManager:
         """为指定的流捕获快照"""
         try:
             # 创建目录
-            snapshot_dir = Path(f"./streams_record/{stream_code}")
+            snapshot_dir = Path(f"./streams_records/{stream_code}")
             snapshot_dir.mkdir(parents=True, exist_ok=True)
             
             # 生成时间戳文件名
@@ -1016,7 +1016,7 @@ class SRSConnectionManager:
     def _merge_stream_recordings(self, stream_code: str):
         """合并流的录像段并导出不同分辨率版本"""
         try:
-            recording_dir = Path(f"./streams_record/{stream_code}")
+            recording_dir = Path(f"./streams_records/{stream_code}")
             if not recording_dir.exists():
                 self.logger.warn(f"Recording directory not found for stream {stream_code}")
                 return

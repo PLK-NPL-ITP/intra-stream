@@ -1103,9 +1103,6 @@ if __name__ == "__main__":
     logger.info(f"Intra-Stream HTTP Backend Server starting with config: {args.conf}")
     logger.info(f"FFmpeg binary selection: configure_sys_ffmpeg={args.configure_sys_ffmpeg}, resolved={FFMPEG_BINARY}")
 
-    args = parser.parse_known_args()
-    print(args.conf)
-
     # Read log configuration from the already-initialized logger instance
     # to avoid duplicate config parsing
     log_tank = (logger.config.get('log_tank') or 'console').lower()
