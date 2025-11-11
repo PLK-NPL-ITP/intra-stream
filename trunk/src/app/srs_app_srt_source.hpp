@@ -149,6 +149,54 @@ public:
     virtual void wait(int nb_msgs, srs_utime_t timeout);
 };
 
+// The SRT format interface.
+class ISrsSrtFormat
+{
+public:
+    ISrsSrtFormat();
+    virtual ~ISrsSrtFormat();
+
+public:
+    virtual srs_error_t initialize(ISrsRequest *req) = 0;
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt) = 0;
+};
+
+// Lightweight format parser for SRT streams to extract codec information
+// from MPEG-TS packets and update statistics.
+class SrsSrtFormat : public ISrsSrtFormat, public ISrsTsHandler
+{
+public:
+    SrsSrtFormat();
+    virtual ~SrsSrtFormat();
+
+public:
+    srs_error_t initialize(ISrsRequest *req);
+    srs_error_t on_srt_packet(SrsSrtPacket *pkt);
+
+public:
+    // Interface ISrsTsHandler
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    void update_ts_message_stats(bool is_audio);
+    srs_error_t parse_video_codec(SrsTsMessage *msg);
+    srs_error_t parse_audio_codec(SrsTsMessage *msg);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsRequest *req_;
+    ISrsStatistic *stat_;
+    SrsTsContext *ts_ctx_;
+    SrsRtmpFormat *format_;
+    // Track whether we've already reported codec info to avoid duplicate updates
+    bool video_codec_reported_;
+    bool audio_codec_reported_;
+    // Frame counters for statistics reporting
+    int nn_video_frames_;
+    int nn_audio_frames_;
+};
+
 // Collect and build SRT TS packet to AV frames.
 class SrsSrtFrameBuilder : public ISrsTsHandler
 {
@@ -161,7 +209,7 @@ public:
 
 public:
     virtual srs_error_t on_publish();
-    virtual srs_error_t on_packet(SrsSrtPacket *pkt);
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt);
     virtual void on_unpublish();
     // Interface ISrsTsHandler
 public:
@@ -270,7 +318,7 @@ public:
     virtual void on_unpublish();
 
 public:
-    srs_error_t on_packet(SrsSrtPacket *packet);
+    srs_error_t on_srt_packet(SrsSrtPacket *packet);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -288,6 +336,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSrtBridge *srt_bridge_;
+    // Format parser for extracting codec information and updating statistics
+    ISrsSrtFormat *format_;
 };
 
 #endif

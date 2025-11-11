@@ -553,17 +553,20 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
     // TODO: FIXME: Support reload.
     nack_enabled_ = config_->get_rtc_nack_enabled(req->vhost_);
     nack_no_copy_ = config_->get_rtc_nack_no_copy(req->vhost_);
-    srs_trace("RTC player nack=%d, nnc=%d", nack_enabled_, nack_no_copy_);
+    bool keep_original_ssrc = config_->get_rtc_keep_original_ssrc(req->vhost_);
+    srs_trace("RTC player nack=%d, nnc=%d, keep_original_ssrc=%d", nack_enabled_, nack_no_copy_, keep_original_ssrc);
 
     // Setup tracks.
     for (map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
         SrsRtcAudioSendTrack *track = it->second;
         track->set_nack_no_copy(nack_no_copy_);
+        track->set_keep_original_ssrc(keep_original_ssrc);
     }
 
     for (map<uint32_t, SrsRtcVideoSendTrack *>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
         SrsRtcVideoSendTrack *track = it->second;
         track->set_nack_no_copy(nack_no_copy_);
+        track->set_keep_original_ssrc(keep_original_ssrc);
     }
 
     return err;
@@ -1208,6 +1211,8 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
     pt_to_drop_ = 0;
 
     nn_audio_frames_ = 0;
+    nn_video_frames_ = 0;
+    format_ = new SrsRtcFormat();
     twcc_enabled_ = false;
     twcc_id_ = 0;
     twcc_fb_count_ = 0;
@@ -1260,6 +1265,7 @@ SrsRtcPublishStream::~SrsRtcPublishStream()
     srs_freep(pli_worker_);
     srs_freep(twcc_epp_);
     srs_freep(pli_epp_);
+    srs_freep(format_);
     srs_freep(req_);
 
     // update the statistic when client coveried.
@@ -1283,6 +1289,10 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
     srs_error_t err = srs_success;
 
     req_ = r->copy();
+
+    if ((err = format_->initialize(req_)) != srs_success) {
+        return srs_error_wrap(err, "initialize format");
+    }
 
     if ((err = timer_rtcp_->initialize()) != srs_success) {
         return srs_error_wrap(err, "initialize timer rtcp");
@@ -1670,6 +1680,15 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
     }
 
+    // Report codec information to statistics on first RTP packet.
+    if ((err = format_->on_rtp_packet(track, is_audio)) != srs_success) {
+        srs_warn("RTC: format packet err %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    // Update RTP packet statistics.
+    update_rtp_packet_stats(is_audio);
+
     // Consume packet by track.
     if ((err = track->on_rtp(source_, pkt)) != srs_success) {
         return srs_error_wrap(err, "audio track, SSRC=%u, SEQ=%u", ssrc, pkt->header_.get_sequence());
@@ -1688,6 +1707,36 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
     }
 
     return err;
+}
+
+void SrsRtcPublishStream::update_rtp_packet_stats(bool is_audio)
+{
+    srs_error_t err = srs_success;
+
+    // Count RTP packets for statistics.
+    if (is_audio) {
+        ++nn_audio_frames_;
+    } else {
+        ++nn_video_frames_;
+    }
+
+    // Update the stat for video frames, counting RTP packets as frames.
+    if (nn_video_frames_ > 288) {
+        if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
+            srs_warn("RTC: stat video frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_video_frames_ = 0;
+    }
+
+    // Update the stat for audio frames periodically.
+    if (nn_audio_frames_ > 288) {
+        if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
+            srs_warn("RTC: stat audio frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_audio_frames_ = 0;
+    }
 }
 
 srs_error_t SrsRtcPublishStream::check_send_nacks()
@@ -3286,10 +3335,30 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             // Update the ruc, which is about user specified configuration.
             ruc->audio_before_video_ = !nn_any_video_parsed;
 
-            // TODO: check opus format specific param
-            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
+            // Try to find audio codec based on user preference or default order
+            std::vector<SrsMediaPayloadType> payloads;
+
+            // If user specified audio codec, try that first
+            if (!ruc->acodec_.empty()) {
+                payloads = remote_media_desc.find_media_with_encoding_name(ruc->acodec_);
+                if (payloads.empty()) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found %s audio payload type", ruc->acodec_.c_str());
+                }
+            } else {
+                // Default order: Opus, PCMU (G.711 μ-law), PCMA (G.711 A-law)
+                // Prioritize PCMU over PCMA as per Chrome SDP order
+                payloads = remote_media_desc.find_media_with_encoding_name("opus");
+                if (payloads.empty()) {
+                    // Then try PCMU (G.711 μ-law)
+                    payloads = remote_media_desc.find_media_with_encoding_name("PCMU");
+                }
+                if (payloads.empty()) {
+                    // Finally try PCMA (G.711 A-law)
+                    payloads = remote_media_desc.find_media_with_encoding_name("PCMA");
+                }
+            }
             if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found audio payload type (opus/PCMU/PCMA)");
             }
 
             for (int j = 0; j < (int)payloads.size(); j++) {
@@ -3317,10 +3386,10 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
 
                 track_desc->type_ = "audio";
                 track_desc->set_codec_payload((SrsCodecPayload *)audio_payload);
-                // Only choose one match opus codec.
+                // Only choose one match audio codec.
                 break;
             }
-        } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->codec_) == SrsVideoCodecIdAV1) {
+        } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->vcodec_) == SrsVideoCodecIdAV1) {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("AV1");
             if (payloads.empty()) {
                 // Be compatible with the Chrome M96, still check the AV1X encoding name
@@ -3357,7 +3426,39 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
                 track_desc->set_codec_payload((SrsCodecPayload *)video_payload);
                 break;
             }
-        } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->codec_) == SrsVideoCodecIdHEVC) {
+        } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->vcodec_) == SrsVideoCodecIdVP9) {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("VP9");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid VP9 payload type");
+            }
+
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType &payload = payloads.at(j);
+
+                // Generate video payload for vp9.
+                SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
+                // TODO: FIXME: Only support some transport algorithms.
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string &rtcp_fb = payload.rtcp_fb_.at(k);
+
+                    if (nack_enabled) {
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                    if (twcc_enabled && remote_twcc_id) {
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                }
+
+                track_desc->type_ = "video";
+                track_desc->set_codec_payload((SrsCodecPayload *)video_payload);
+                break;
+            }
+        } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->vcodec_) == SrsVideoCodecIdHEVC) {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
             if (payloads.empty()) {
                 return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid H.265 payload type");
@@ -3682,6 +3783,7 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
 
     bool nack_enabled = config_->get_rtc_nack_enabled(req->vhost_);
     bool twcc_enabled = config_->get_rtc_twcc_enabled(req->vhost_);
+    bool keep_original_ssrc = config_->get_rtc_keep_original_ssrc(req->vhost_);
 
     SrsSharedPtr<SrsRtcSource> source;
     if ((err = rtc_sources_->fetch_or_create(req, source)) != srs_success) {
@@ -3715,16 +3817,33 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
             // Update the ruc, which is about user specified configuration.
             ruc->audio_before_video_ = !nn_any_video_parsed;
 
-            // TODO: check opus format specific param
-            vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("opus");
+            // Try to find audio tracks in source with different codec names
+            // Try Opus first (most common), then PCMU, then PCMA
+            std::vector<SrsRtcTrackDescription *> source_audio_tracks = source->get_track_desc("audio", "opus");
+            std::string source_audio_codec = "opus";
+
+            if (source_audio_tracks.empty()) {
+                source_audio_tracks = source->get_track_desc("audio", "PCMU");
+                source_audio_codec = "PCMU";
+            }
+            if (source_audio_tracks.empty()) {
+                source_audio_tracks = source->get_track_desc("audio", "PCMA");
+                source_audio_codec = "PCMA";
+            }
+            if (source_audio_tracks.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no audio track in source (tried opus/PCMU/PCMA)");
+            }
+
+            // Try to find matching codec in remote SDP
+            vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name(source_audio_codec);
             if (payloads.empty()) {
-                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found opus payload type");
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid found %s payload type", source_audio_codec.c_str());
             }
 
             remote_payload = payloads.at(0);
-            track_descs = source->get_track_desc("audio", "opus");
+            track_descs = source_audio_tracks;
         } else if (remote_media_desc.is_video()) {
-            SrsVideoCodecId prefer_codec = srs_video_codec_str2id(ruc->codec_);
+            SrsVideoCodecId prefer_codec = srs_video_codec_str2id(ruc->vcodec_);
             if (prefer_codec == SrsVideoCodecIdReserved) {
                 // Get the source codec if not specified.
                 std::vector<SrsRtcTrackDescription *> source_track_descs = source->get_track_desc("video", "");
@@ -3754,6 +3873,14 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                     // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
                     track_descs = source->get_track_desc("video", "AV1X");
                 }
+            } else if (prefer_codec == SrsVideoCodecIdVP9) {
+                std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("VP9");
+                if (payloads.empty()) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid VP9 payload type");
+                }
+
+                remote_payload = payloads.at(0);
+                track_descs = source->get_track_desc("video", "VP9");
             } else if (prefer_codec == SrsVideoCodecIdHEVC) {
                 std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
                 if (payloads.empty()) {
@@ -3843,7 +3970,12 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                 }
             }
 
-            track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+            // When keep_original_ssrc is enabled, preserve the original SSRC from publisher.
+            // Otherwise, generate a new SSRC for each player.
+            // @see https://github.com/ossrs/srs/issues/3850
+            if (!keep_original_ssrc) {
+                track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+            }
 
             // TODO: FIXME: set audio_payload rtcp_fbs_,
             // according by whether downlink is support transport algorithms.

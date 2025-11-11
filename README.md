@@ -11,7 +11,8 @@
 [![](https://codecov.io/gh/ossrs/srs/graph/badge.svg?token=Zx2LhdtA39)](https://codecov.io/gh/ossrs/srs)
 
 SRS/7.0 ([Kai](https://ossrs.io/lts/en-us/product#release-70)) is a simple, high-efficiency, and real-time video server, 
-supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS, 
+supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS,
+with codec support for H.264, H.265, AV1, VP9, AAC, Opus, and G.711, 
 and essential [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
@@ -62,7 +63,7 @@ To learn more about RTMP, HLS, HTTP-FLV, SRT, MPEG-DASH, WebRTC protocols, clust
 HTTP API, DVR, and transcoding, please check the documents in [English](https://ossrs.io) 
 or [Chinese](https://ossrs.net).
 
-If you want to use an IDE, VSCode is recommanded. VSCode supports macOS, and Linux 
+If you want to use an IDE, VSCode is recommended. VSCode supports macOS, and Linux
 platforms. The settings are ready. All you need to do is open the folder with VSCode and 
 enjoy the efficiency brought by the IDE. See [VSCode README](.vscode/README.md) for details.
 
@@ -118,6 +119,7 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2025-11-03, [Release v6.0-b3](https://github.com/ossrs/srs/releases/tag/v6.0-b3), v6.0-b3, 6.0 beta3, v6.0.183, 170957 lines.
 * 2025-10-16, [Release v6.0-b2](https://github.com/ossrs/srs/releases/tag/v6.0-b2), v6.0-b2, 6.0 beta2, v6.0.181, 170948 lines.
 * 2025-09-15, [Release v6.0-b1](https://github.com/ossrs/srs/releases/tag/v6.0-b1), v6.0-b1, 6.0 beta1, v6.0.177, 170611 lines.
 * 2025-08-12, [Release v6.0-b0](https://github.com/ossrs/srs/releases/tag/v6.0-b0), v6.0-b0, 6.0 beta0, v6.0.172, 170417 lines.

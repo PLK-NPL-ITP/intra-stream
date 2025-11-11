@@ -57,6 +57,7 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames);
     virtual std::string server_id();
     virtual std::string service_id();
     virtual std::string service_pid();
@@ -87,7 +88,7 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_packet(SrsSrtPacket *packet);
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *packet);
     void set_on_publish_error(srs_error_t err);
     void set_on_packet_error(srs_error_t err);
     void reset();
@@ -111,6 +112,7 @@ public:
     void reset();
 };
 
+#ifdef SRS_RTSP
 // Forward declaration
 class SrsRtspConsumer;
 
@@ -159,5 +161,6 @@ public:
     void set_send_error(srs_error_t err);
     void reset();
 };
+#endif
 
 #endif

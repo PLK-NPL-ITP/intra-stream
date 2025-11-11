@@ -142,7 +142,7 @@ MockSrtTarget::~MockSrtTarget()
     srs_freep(packet_error_);
 }
 
-srs_error_t MockSrtTarget::on_packet(SrsSrtPacket *pkt)
+srs_error_t MockSrtTarget::on_srt_packet(SrsSrtPacket *pkt)
 {
     on_packet_count_++;
     last_packet_ = pkt;
@@ -230,8 +230,8 @@ VOID TEST(StreamBridgeTest, ISrsSrtTarget_Interface)
     char *data = pkt->wrap(188); // TS packet size
     data[0] = 0x47;              // TS sync byte
 
-    // Test on_packet call
-    srs_error_t err = target.on_packet(pkt.get());
+    // Test on_srt_packet call
+    srs_error_t err = target.on_srt_packet(pkt.get());
     EXPECT_TRUE(err == srs_success);
     EXPECT_EQ(1, target.on_packet_count_);
     EXPECT_EQ(pkt.get(), target.last_packet_);
@@ -598,7 +598,7 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_PacketHandling)
     data[0] = 0x47;
 
     // Test packet handling (should succeed even without targets)
-    HELPER_EXPECT_SUCCESS(bridge->on_packet(pkt.get()));
+    HELPER_EXPECT_SUCCESS(bridge->on_srt_packet(pkt.get()));
 }
 
 // Test SrsSrtBridge frame handling - comprehensive coverage of on_frame() method

@@ -1093,6 +1093,67 @@ VOID TEST(KernelUtilityTest, StringsDumpsHexWithString)
     EXPECT_TRUE(empty_result.empty());
 }
 
+// Test: srs_hex_decode_string decodes hex string to bytes
+VOID TEST(KernelUtilityTest, HexDecodeString)
+{
+    // Test normal case: decode valid hex string
+    if (true) {
+        std::string hex_str = "42e01f";
+        uint8_t data[3];
+
+        int result = srs_hex_decode_string(data, hex_str.c_str(), (int)hex_str.length());
+
+        EXPECT_EQ(3, result);
+        EXPECT_EQ(0x42, data[0]);
+        EXPECT_EQ(0xe0, data[1]);
+        EXPECT_EQ(0x1f, data[2]);
+    }
+
+    // Test uppercase hex string
+    if (true) {
+        std::string hex_str = "ABCDEF";
+        uint8_t data[3];
+
+        int result = srs_hex_decode_string(data, hex_str.c_str(), (int)hex_str.length());
+
+        EXPECT_EQ(3, result);
+        EXPECT_EQ(0xAB, data[0]);
+        EXPECT_EQ(0xCD, data[1]);
+        EXPECT_EQ(0xEF, data[2]);
+    }
+
+    // Test mixed case hex string
+    if (true) {
+        std::string hex_str = "aB12Cd";
+        uint8_t data[3];
+
+        int result = srs_hex_decode_string(data, hex_str.c_str(), (int)hex_str.length());
+
+        EXPECT_EQ(3, result);
+        EXPECT_EQ(0xAB, data[0]);
+        EXPECT_EQ(0x12, data[1]);
+        EXPECT_EQ(0xCD, data[2]);
+    }
+
+    // Test error case: NULL pointer
+    if (true) {
+        uint8_t data[3];
+        EXPECT_EQ(-1, srs_hex_decode_string(data, NULL, 6));
+    }
+
+    // Test error case: odd length (not pairs of hex digits)
+    if (true) {
+        uint8_t data[3];
+        EXPECT_EQ(-1, srs_hex_decode_string(data, "abc", 3));
+    }
+
+    // Test error case: invalid hex character
+    if (true) {
+        uint8_t data[3];
+        EXPECT_EQ(-1, srs_hex_decode_string(data, "abcg", 4));
+    }
+}
+
 // Test: srs_is_boolean checks if string is "true" or "false"
 VOID TEST(AppUtilityTest, IsBoolean)
 {

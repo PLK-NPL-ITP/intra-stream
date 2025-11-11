@@ -443,6 +443,7 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter *writer, SrsTsMessage *msg, Sr
     case SrsVideoCodecIdOn2VP6WithAlphaChannel:
     case SrsVideoCodecIdScreenVideoVersion2:
     case SrsVideoCodecIdAV1:
+    case SrsVideoCodecIdVP9:
         vs = SrsTsStreamReserved;
         break;
     }
@@ -465,8 +466,8 @@ srs_error_t SrsTsContext::encode(ISrsStreamWriter *writer, SrsTsMessage *msg, Sr
     case SrsAudioCodecIdNellymoser16kHzMono:
     case SrsAudioCodecIdNellymoser8kHzMono:
     case SrsAudioCodecIdNellymoser:
-    case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
-    case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
+    case SrsAudioCodecIdPCMA:
+    case SrsAudioCodecIdPCMU:
     case SrsAudioCodecIdReserved:
     case SrsAudioCodecIdSpeex:
     case SrsAudioCodecIdReservedMP3_8kHz:

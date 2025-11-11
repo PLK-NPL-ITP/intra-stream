@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_format.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_stream.hpp>
 
@@ -44,6 +45,33 @@ using namespace std;
 #define SRS_HLS_FLOOR_REAP_PERCENT 0.3
 // reset the piece id when deviation overflow this.
 #define SRS_JUMP_WHEN_PIECE_DEVIATION 20
+
+// Build the full key URL by appending key_file to hls_key_url with proper query string handling.
+// If hls_key_url contains query string like "http://localhost:8080/?token=abc",
+// the result will be "http://localhost:8080/live/livestream-0.key?token=abc"
+// @param hls_key_url The base URL which may contain query string
+// @param key_file The key file path like "live/livestream-0.key"
+// @return The full key URL with query string properly appended
+string srs_hls_build_key_url(const string &hls_key_url, const string &key_file)
+{
+    if (hls_key_url.empty()) {
+        return key_file;
+    }
+
+    // Find the query string separator
+    size_t pos = hls_key_url.find("?");
+    if (pos != string::npos) {
+        // URL contains query string, split and rebuild
+        // Example: "http://localhost:8080/?token=abc" + "live/livestream-0.key"
+        // Result: "http://localhost:8080/live/livestream-0.key?token=abc"
+        string base_url = hls_key_url.substr(0, pos);
+        string query_string = hls_key_url.substr(pos); // Include the '?'
+        return base_url + key_file + query_string;
+    }
+
+    // No query string, simple concatenation
+    return hls_key_url + key_file;
+}
 
 SrsHlsSegment::SrsHlsSegment(SrsTsContext *c, SrsAudioCodecId ac, SrsVideoCodecId vc, ISrsFileWriter *w)
 {
@@ -1107,11 +1135,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = key_file;
-        // if key_url is not set,only use the file name
-        if (!hls_key_url_.empty()) {
-            key_path = hls_key_url_ + key_file;
-        }
+        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
 
         ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
@@ -2040,11 +2064,7 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8_segment(SrsHlsSegment *segment, std::st
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = key_file;
-        // if key_url is not set,only use the file name
-        if (!hls_key_url_.empty()) {
-            key_path = hls_key_url_ + key_file;
-        }
+        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
 
         ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }

@@ -16,7 +16,9 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_format.hpp>
 #include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 
@@ -337,7 +339,7 @@ srs_error_t SrsSrtFrameBuilder::on_publish()
     return srs_success;
 }
 
-srs_error_t SrsSrtFrameBuilder::on_packet(SrsSrtPacket *pkt)
+srs_error_t SrsSrtFrameBuilder::on_srt_packet(SrsSrtPacket *pkt)
 {
     srs_error_t err = srs_success;
 
@@ -924,6 +926,297 @@ srs_error_t SrsSrtFrameBuilder::on_aac_frame(SrsTsMessage *msg, uint32_t pts, ch
     return err;
 }
 
+ISrsSrtFormat::ISrsSrtFormat()
+{
+}
+
+ISrsSrtFormat::~ISrsSrtFormat()
+{
+}
+
+SrsSrtFormat::SrsSrtFormat()
+{
+    req_ = NULL;
+    ts_ctx_ = new SrsTsContext();
+    format_ = new SrsRtmpFormat();
+    video_codec_reported_ = false;
+    audio_codec_reported_ = false;
+    nn_video_frames_ = 0;
+    nn_audio_frames_ = 0;
+
+    stat_ = _srs_stat;
+}
+
+SrsSrtFormat::~SrsSrtFormat()
+{
+    req_ = NULL;
+    srs_freep(ts_ctx_);
+    srs_freep(format_);
+
+    stat_ = NULL;
+}
+
+srs_error_t SrsSrtFormat::initialize(ISrsRequest *req)
+{
+    srs_error_t err = srs_success;
+
+    req_ = req;
+
+    return err;
+}
+
+srs_error_t SrsSrtFormat::on_srt_packet(SrsSrtPacket *pkt)
+{
+    srs_error_t err = srs_success;
+
+    // Skip TS parsing if both video and audio codecs have been reported
+    // This avoids unnecessary TS decoding and log flooding from unrecognized stream types
+    if (video_codec_reported_ && audio_codec_reported_) {
+        return err;
+    }
+
+    char *buf = pkt->data();
+    int nb_buf = pkt->size();
+
+    // Parse TS packets to extract codec information
+    int nb_packet = nb_buf / SRS_TS_PACKET_SIZE;
+    for (int i = 0; i < nb_packet; i++) {
+        char *p = buf + (i * SRS_TS_PACKET_SIZE);
+        SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
+
+        // Decode TS packet and call on_ts_message for each message
+        if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
+            // Ignore parse errors, just log and continue
+            srs_warn("srt format parse ts packet err=%s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            continue;
+        }
+    }
+
+    return err;
+}
+
+void SrsSrtFormat::update_ts_message_stats(bool is_audio)
+{
+    srs_error_t err = srs_success;
+
+    // Count TS messages for statistics.
+    if (is_audio) {
+        ++nn_audio_frames_;
+    } else {
+        ++nn_video_frames_;
+    }
+
+    // Update the stat for video frames, counting TS messages as frames.
+    if (nn_video_frames_ > 288) {
+        if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
+            srs_warn("SRT: stat video frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_video_frames_ = 0;
+    }
+
+    // Update the stat for audio frames periodically.
+    if (nn_audio_frames_ > 288) {
+        if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
+            srs_warn("SRT: stat audio frames err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        nn_audio_frames_ = 0;
+    }
+}
+
+srs_error_t SrsSrtFormat::on_ts_message(SrsTsMessage *msg)
+{
+    srs_error_t err = srs_success;
+
+    // Only parse video and audio messages
+    if (msg->channel_->stream_ == SrsTsStreamVideoH264 || msg->channel_->stream_ == SrsTsStreamVideoHEVC) {
+        // Update statistics for video frames
+        update_ts_message_stats(false);
+
+        if (video_codec_reported_) {
+            return err;
+        }
+
+        if ((err = parse_video_codec(msg)) != srs_success) {
+            return srs_error_wrap(err, "parse video codec");
+        }
+
+        if (format_->vcodec_) {
+            video_codec_reported_ = true;
+
+            SrsVideoCodecConfig *c = format_->vcodec_;
+            if ((err = stat_->on_video_info(req_, c->id_, c->avc_profile_, c->avc_level_, c->width_, c->height_)) != srs_success) {
+                return srs_error_wrap(err, "stat video info");
+            }
+
+            srs_trace("srt: parsed %s codec, profile=%s, level=%s, %dx%d",
+                      srs_video_codec_id2str(c->id_).c_str(),
+                      srs_avc_profile2str(c->avc_profile_).c_str(), srs_avc_level2str(c->avc_level_).c_str(),
+                      c->width_, c->height_);
+        }
+    } else if (msg->channel_->stream_ == SrsTsStreamAudioAAC) {
+        // Update statistics for audio frames
+        update_ts_message_stats(true);
+
+        if (audio_codec_reported_) {
+            return err;
+        }
+
+        if ((err = parse_audio_codec(msg)) != srs_success) {
+            return srs_error_wrap(err, "parse audio codec");
+        }
+
+        if (format_->acodec_) {
+            audio_codec_reported_ = true;
+
+            SrsAudioCodecConfig *c = format_->acodec_;
+            SrsAudioChannels channels = c->sound_type_;
+            if (c->id_ == SrsAudioCodecIdAAC) {
+                channels = (c->aac_channels_ == 1) ? SrsAudioChannelsMono : SrsAudioChannelsStereo;
+            }
+            if ((err = stat_->on_audio_info(req_, c->id_, c->sound_rate_, channels, c->aac_object_)) != srs_success) {
+                return srs_error_wrap(err, "stat audio info");
+            }
+
+            srs_trace("srt: parsed %s codec, sample_rate=%dHZ, channels=%d, profile=%s",
+                      srs_audio_codec_id2str(c->id_).c_str(),
+                      srs_audio_sample_rate2number(c->sound_rate_), (int)channels + 1,
+                      srs_aac_object2str(c->aac_object_).c_str());
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtFormat::parse_video_codec(SrsTsMessage *msg)
+{
+    srs_error_t err = srs_success;
+
+    // Parse the video codec from TS message payload
+    SrsBuffer avs(msg->payload_->bytes(), msg->payload_->length());
+
+    // Parse H.265/HEVC to extract VPS/SPS/PPS
+    // TODO: FIXME: Implement HEVC codec parsing similar to H.264
+    if (msg->channel_->stream_ == SrsTsStreamVideoHEVC) {
+        video_codec_reported_ = true;
+        return err;
+    }
+
+    // Only parse H.264 video messages
+    if (msg->channel_->stream_ == SrsTsStreamVideoH264) {
+        // Parse H.264 to extract SPS/PPS
+        SrsUniquePtr<SrsRawH264Stream> avc(new SrsRawH264Stream());
+        std::string sps, pps;
+
+        while (!avs.empty()) {
+            char *data = NULL;
+            int data_size = 0;
+            if ((err = avc->annexb_demux(&avs, &data, &data_size)) != srs_success) {
+                return srs_error_wrap(err, "demux annexb");
+            }
+
+            if (data == NULL || data_size == 0) {
+                continue;
+            }
+
+            // Extract SPS
+            if (avc->is_sps(data, data_size)) {
+                if ((err = avc->sps_demux(data, data_size, sps)) != srs_success) {
+                    return srs_error_wrap(err, "demux sps");
+                }
+            }
+
+            // Extract PPS
+            if (avc->is_pps(data, data_size)) {
+                if ((err = avc->pps_demux(data, data_size, pps)) != srs_success) {
+                    return srs_error_wrap(err, "demux pps");
+                }
+            }
+
+            // Skip until we have both SPS and PPS
+            if (sps.empty() || pps.empty()) {
+                continue;
+            }
+
+            // If we have both SPS and PPS, parse codec details
+            std::string sh;
+            if ((err = avc->mux_sequence_header(sps, pps, sh)) != srs_success) {
+                return srs_error_wrap(err, "mux sequence header");
+            }
+
+            // Create a temporary media packet to parse codec info
+            char *flv = NULL;
+            int nb_flv = 0;
+            uint32_t dts = 0;
+            if ((err = avc->mux_avc2flv(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoAvcFrameTraitSequenceHeader, dts, dts, &flv, &nb_flv)) != srs_success) {
+                return srs_error_wrap(err, "avc to flv");
+            }
+
+            SrsMediaPacket frame;
+            frame.wrap(flv, nb_flv);
+
+            // Parse the video format to extract codec details
+            if ((err = format_->on_video(&frame)) != srs_success) {
+                return srs_error_wrap(err, "format parse video");
+            }
+
+            return err;
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsSrtFormat::parse_audio_codec(SrsTsMessage *msg)
+{
+    srs_error_t err = srs_success;
+
+    // Parse the audio codec from TS message payload
+    SrsBuffer avs(msg->payload_->bytes(), msg->payload_->length());
+
+    if (msg->channel_->stream_ == SrsTsStreamAudioAAC) {
+        // Parse AAC to extract audio specific config
+        SrsUniquePtr<SrsRawAacStream> aac(new SrsRawAacStream());
+
+        char *frame = NULL;
+        int frame_size = 0;
+        SrsRawAacStreamCodec codec;
+        if ((err = aac->adts_demux(&avs, &frame, &frame_size, codec)) != srs_success) {
+            return srs_error_wrap(err, "demux adts");
+        }
+
+        if (frame_size <= 0) {
+            return err;
+        }
+
+        std::string sh;
+        if ((err = aac->mux_sequence_header(&codec, sh)) != srs_success) {
+            return srs_error_wrap(err, "mux sequence header");
+        }
+
+        // Create a temporary media packet to parse codec info
+        int rtmp_len = sh.size() + 2;
+        char *buf = new char[rtmp_len];
+        SrsBuffer stream(buf, rtmp_len);
+        uint8_t aac_flag = (SrsAudioCodecIdAAC << 4) | (codec.sound_rate_ << 2) | (codec.sound_size_ << 1) | codec.sound_type_;
+        stream.write_1bytes(aac_flag);
+        stream.write_1bytes(0);
+        stream.write_bytes((char *)sh.data(), sh.size());
+
+        SrsMediaPacket frame_pkt;
+        frame_pkt.wrap(buf, rtmp_len);
+
+        // Parse the audio format to extract codec details
+        if ((err = format_->on_audio(&frame_pkt)) != srs_success) {
+            return srs_error_wrap(err, "format parse audio");
+        }
+    }
+
+    return err;
+}
+
 ISrsSrtSource::ISrsSrtSource()
 {
 }
@@ -940,6 +1233,7 @@ SrsSrtSource::SrsSrtSource()
     stream_die_at_ = 0;
 
     stat_ = _srs_stat;
+    format_ = new SrsSrtFormat();
 }
 
 SrsSrtSource::~SrsSrtSource()
@@ -950,6 +1244,7 @@ SrsSrtSource::~SrsSrtSource()
 
     srs_freep(srt_bridge_);
     srs_freep(req_);
+    srs_freep(format_);
 
     SrsContextId cid = _source_id;
     if (cid.empty())
@@ -976,6 +1271,11 @@ srs_error_t SrsSrtSource::initialize(ISrsRequest *r)
     srs_error_t err = srs_success;
 
     req_ = r->copy();
+
+    // Initialize format parser for codec detection
+    if ((err = format_->initialize(req_)) != srs_success) {
+        return srs_error_wrap(err, "format initialize");
+    }
 
     return err;
 }
@@ -1131,9 +1431,17 @@ void SrsSrtSource::on_unpublish()
     can_publish_ = true;
 }
 
-srs_error_t SrsSrtSource::on_packet(SrsSrtPacket *packet)
+srs_error_t SrsSrtSource::on_srt_packet(SrsSrtPacket *packet)
 {
     srs_error_t err = srs_success;
+
+    // Parse packet to extract codec information for statistics
+    // This is lightweight and only parses until codec info is found
+    if ((err = format_->on_srt_packet(packet)) != srs_success) {
+        // Don't fail on parse errors, just log and continue
+        srs_warn("srt source parse packet err=%s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
 
     for (int i = 0; i < (int)consumers_.size(); i++) {
         ISrsSrtConsumer *consumer = consumers_.at(i);
@@ -1142,7 +1450,7 @@ srs_error_t SrsSrtSource::on_packet(SrsSrtPacket *packet)
         }
     }
 
-    if (srt_bridge_ && (err = srt_bridge_->on_packet(packet)) != srs_success) {
+    if (srt_bridge_ && (err = srt_bridge_->on_srt_packet(packet)) != srs_success) {
         return srs_error_wrap(err, "bridge consume message");
     }
 

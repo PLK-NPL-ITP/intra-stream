@@ -74,6 +74,7 @@ class ISrsCoroutine;
 class ISrsDtlsCertificate;
 class SrsRtcRecvTrack;
 class ISrsRtcPlayStream;
+class ISrsRtcFormat;
 
 const uint8_t kSR = 200;
 const uint8_t kRR = 201;
@@ -541,7 +542,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
-    uint64_t nn_audio_frames_;
+    int nn_audio_frames_;
+    int nn_video_frames_;
+    ISrsRtcFormat *format_;
     ISrsRtcPliWorker *pli_worker_;
     SrsErrorPithyPrint *twcc_epp_;
 
@@ -619,6 +622,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuffer *buf);
+    void update_rtp_packet_stats(bool is_audio);
 
 public:
     srs_error_t check_send_nacks();

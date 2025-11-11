@@ -61,8 +61,10 @@ enum SrsVideoCodecId {
     SrsVideoCodecIdAVC = 7,
     // See page 79 at @doc https://github.com/CDN-Union/H265/blob/master/Document/video_file_format_spec_v10_1_ksyun_20170615.doc
     SrsVideoCodecIdHEVC = 12,
-    // https://mp.weixin.qq.com/s/H3qI7zsON5sdf4oDJ9qlkg
+    // AV1 codec for WebRTC, https://github.com/ossrs/srs/pull/2324
     SrsVideoCodecIdAV1 = 13,
+    // VP9 codec for WebRTC, https://github.com/ossrs/srs/pull/4565
+    SrsVideoCodecIdVP9 = 14,
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 SrsVideoCodecId srs_video_codec_str2id(const std::string &codec);
@@ -168,8 +170,10 @@ enum SrsAudioCodecId {
     SrsAudioCodecIdNellymoser16kHzMono = 4,
     SrsAudioCodecIdNellymoser8kHzMono = 5,
     SrsAudioCodecIdNellymoser = 6,
-    SrsAudioCodecIdReservedG711AlawLogarithmicPCM = 7,
-    SrsAudioCodecIdReservedG711MuLawLogarithmicPCM = 8,
+    // G.711 A-law codec for WebRTC, https://github.com/ossrs/srs/issues/4075
+    SrsAudioCodecIdPCMA = 7,
+    // G.711 μ-law codec for WebRTC, https://github.com/ossrs/srs/issues/4075
+    SrsAudioCodecIdPCMU = 8,
     SrsAudioCodecIdReserved = 9,
     SrsAudioCodecIdAAC = 10,
     SrsAudioCodecIdSpeex = 11,
@@ -1067,8 +1071,13 @@ enum SrsAvcLevel {
     SrsAvcLevel_32 = 32,
     SrsAvcLevel_4 = 40,
     SrsAvcLevel_41 = 41,
+    SrsAvcLevel_42 = 42,
     SrsAvcLevel_5 = 50,
     SrsAvcLevel_51 = 51,
+    SrsAvcLevel_52 = 52,
+    SrsAvcLevel_6 = 60,
+    SrsAvcLevel_61 = 61,
+    SrsAvcLevel_62 = 62,
 };
 std::string srs_avc_level2str(SrsAvcLevel level);
 

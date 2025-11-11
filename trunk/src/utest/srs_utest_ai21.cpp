@@ -1257,6 +1257,11 @@ srs_error_t MockSrtStatistic::on_video_frames(ISrsRequest *req, int nb_frames)
     return srs_success;
 }
 
+srs_error_t MockSrtStatistic::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockSrtStatistic::server_id()
 {
     return "mock_server_id";
@@ -1359,7 +1364,7 @@ void MockSrtBridge::on_unpublish()
     on_unpublish_count_++;
 }
 
-srs_error_t MockSrtBridge::on_packet(SrsSrtPacket *packet)
+srs_error_t MockSrtBridge::on_srt_packet(SrsSrtPacket *packet)
 {
     on_packet_count_++;
     return srs_error_copy(on_packet_error_);
@@ -1589,8 +1594,8 @@ VOID TEST(SrsSrtSourceTest, OnPacketDistribution)
     const char *test_data = "Test SRT Packet Data";
     packet->wrap((char *)test_data, strlen(test_data));
 
-    // Test: on_packet should distribute to all consumers and bridge
-    HELPER_EXPECT_SUCCESS(source->on_packet(packet.get()));
+    // Test: on_srt_packet should distribute to all consumers and bridge
+    HELPER_EXPECT_SUCCESS(source->on_srt_packet(packet.get()));
 
     // Verify both consumers received the packet
     EXPECT_EQ(1, consumer1->enqueue_count_);

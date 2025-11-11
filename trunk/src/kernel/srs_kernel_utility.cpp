@@ -653,16 +653,19 @@ srs_error_t SrsPath::mkdir_all(string dir)
 }
 
 // fromHexChar converts a hex character into its value and a success flag.
-uint8_t srs_from_hex_char(uint8_t c)
+int srs_from_hex_char(uint8_t c, uint8_t *out)
 {
     if ('0' <= c && c <= '9') {
-        return c - '0';
+        *out = c - '0';
+        return 0;
     }
     if ('a' <= c && c <= 'f') {
-        return c - 'a' + 10;
+        *out = c - 'a' + 10;
+        return 0;
     }
     if ('A' <= c && c <= 'F') {
-        return c - 'A' + 10;
+        *out = c - 'A' + 10;
+        return 0;
     }
 
     return -1;
@@ -702,18 +705,18 @@ char *srs_hex_encode_to_string_lowercase(char *des, const u_int8_t *src, int len
 
 int srs_hex_decode_string(uint8_t *data, const char *p, int size)
 {
-    if (size <= 0 || (size % 2) == 1) {
+    if (!p || size <= 0 || (size % 2) == 1) {
         return -1;
     }
 
     for (int i = 0; i < (int)size / 2; i++) {
-        uint8_t a = srs_from_hex_char(p[i * 2]);
-        if (a == (uint8_t)-1) {
+        uint8_t a = 0;
+        if (srs_from_hex_char(p[i * 2], &a) == -1) {
             return -1;
         }
 
-        uint8_t b = srs_from_hex_char(p[i * 2 + 1]);
-        if (b == (uint8_t)-1) {
+        uint8_t b = 0;
+        if (srs_from_hex_char(p[i * 2 + 1], &b) == -1) {
             return -1;
         }
 

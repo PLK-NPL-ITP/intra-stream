@@ -82,6 +82,8 @@ string srs_video_codec_id2str(SrsVideoCodecId codec)
         return "HEVC";
     case SrsVideoCodecIdAV1:
         return "AV1";
+    case SrsVideoCodecIdVP9:
+        return "VP9";
     case SrsVideoCodecIdReserved:
     case SrsVideoCodecIdReserved1:
     case SrsVideoCodecIdReserved2:
@@ -105,6 +107,8 @@ SrsVideoCodecId srs_video_codec_str2id(const std::string &codec)
         return SrsVideoCodecIdHEVC;
     } else if (upper_codec == "AV1") {
         return SrsVideoCodecIdAV1;
+    } else if (upper_codec == "VP9") {
+        return SrsVideoCodecIdVP9;
     } else if (upper_codec == "VP6") {
         return SrsVideoCodecIdOn2VP6;
     } else if (upper_codec == "VP6A") {
@@ -123,6 +127,10 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
         return "MP3";
     case SrsAudioCodecIdOpus:
         return "Opus";
+    case SrsAudioCodecIdPCMA:
+        return "PCMA";
+    case SrsAudioCodecIdPCMU:
+        return "PCMU";
     case SrsAudioCodecIdReserved1:
     case SrsAudioCodecIdLinearPCMPlatformEndian:
     case SrsAudioCodecIdADPCM:
@@ -130,8 +138,6 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
     case SrsAudioCodecIdNellymoser16kHzMono:
     case SrsAudioCodecIdNellymoser8kHzMono:
     case SrsAudioCodecIdNellymoser:
-    case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
-    case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
     case SrsAudioCodecIdReserved:
     case SrsAudioCodecIdSpeex:
     case SrsAudioCodecIdReservedMP3_8kHz:
@@ -153,6 +159,10 @@ SrsAudioCodecId srs_audio_codec_str2id(const std::string &codec)
         return SrsAudioCodecIdMP3;
     } else if (upper_codec == "OPUS") {
         return SrsAudioCodecIdOpus;
+    } else if (upper_codec == "PCMA") {
+        return SrsAudioCodecIdPCMA;
+    } else if (upper_codec == "PCMU") {
+        return SrsAudioCodecIdPCMU;
     } else if (upper_codec == "SPEEX") {
         return SrsAudioCodecIdSpeex;
     }
@@ -657,10 +667,20 @@ string srs_avc_level2str(SrsAvcLevel level)
         return "4";
     case SrsAvcLevel_41:
         return "4.1";
+    case SrsAvcLevel_42:
+        return "4.2";
     case SrsAvcLevel_5:
         return "5";
     case SrsAvcLevel_51:
         return "5.1";
+    case SrsAvcLevel_52:
+        return "5.2";
+    case SrsAvcLevel_6:
+        return "6";
+    case SrsAvcLevel_61:
+        return "6.1";
+    case SrsAvcLevel_62:
+        return "6.2";
     default:
         return "Other";
     }

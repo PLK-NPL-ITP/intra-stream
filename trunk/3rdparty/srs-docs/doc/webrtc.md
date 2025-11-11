@@ -439,6 +439,58 @@ The streams:
 * HTTP-FLV：[http://localhost:8080/live/show.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=show.flv)
 * RTMP by VLC：rtmp://localhost/live/show
 
+## AV1 Codec Support
+
+SRS supports AV1 codec for WebRTC-to-WebRTC streaming since v4.0.91 ([#2324](https://github.com/ossrs/srs/pull/2324)).
+AV1 is a royalty-free codec that saves 30-50% bandwidth compared to H.264. SRS implements AV1 as relay-only (SFU mode),
+accepting AV1 streams via WHIP and forwarding to WHEP players without transcoding. AV1 streams cannot be converted to
+RTMP/HLS or recorded to DVR.
+
+To use AV1, add the `codec=av1` query parameter to WHIP/WHEP URLs:
+
+* Publish: `http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream&codec=av1`
+* Play: `http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream&codec=av1`
+
+Browser support: Chrome/Edge M90+, Firefox (full support), Safari (decode only). Use H.264 if you need RTMP/HLS conversion,
+DVR recording, or maximum compatibility.
+
+## VP9 Codec Support
+
+SRS supports VP9 codec for WebRTC-to-WebRTC streaming since v7.0.123 ([#4548](https://github.com/ossrs/srs/issues/4548)).
+VP9 is a royalty-free codec that saves 20-40% bandwidth compared to H.264. VP9 works better than H.264/H.265 with congestion control
+in WebRTC, making it ideal for keeping streams live under network fluctuations. SRS implements VP9 as relay-only (SFU mode),
+accepting VP9 streams via WHIP and forwarding to WHEP players without transcoding. VP9 streams cannot be converted to
+RTMP/HLS or recorded to DVR.
+
+To use VP9, add the `codec=vp9` query parameter to WHIP/WHEP URLs:
+
+* Publish: `http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream&codec=vp9`
+* Play: `http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream&codec=vp9`
+
+Browser support: Chrome/Edge M29+, Firefox M28+, Opera M16+. Safari does not support VP9. Use H.264 if you need RTMP/HLS conversion,
+DVR recording, or Safari compatibility.
+
+## G.711 Codec Support
+
+SRS supports G.711 (PCMU/PCMA) audio codec for WebRTC since v7.0.124 ([#4075](https://github.com/ossrs/srs/issues/4075)).
+G.711 is a widely-used, royalty-free audio codec with excellent compatibility across VoIP systems, IP cameras, and legacy telephony equipment.
+SRS implements G.711 as relay-only (SFU mode), accepting G.711 audio streams via WHIP and forwarding to WHEP players without transcoding.
+G.711 streams cannot be converted to RTMP/HLS or recorded to DVR.
+
+To use G.711, add the `acodec=pcmu` or `acodec=pcma` query parameter to WHIP/WHEP URLs:
+
+* Publish with PCMU: `http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream&acodec=pcmu`
+* Play with PCMU: `http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream&acodec=pcmu`
+* Publish with PCMA: `http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream&acodec=pcma`
+
+You can also combine video and audio codec parameters:
+
+* VP9 + PCMU: `http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream&vcodec=vp9&acodec=pcmu`
+* H.264 + PCMA: `http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream&vcodec=h264&acodec=pcma`
+
+Browser support: All major browsers support G.711 (PCMU/PCMA). PCMU (μ-law) is prioritized over PCMA (A-law) when both are available.
+Use Opus if you need RTMP/HLS conversion or DVR recording.
+
 ## SFU: One to One
 
 Please use `conf/rtc.conf` as config.

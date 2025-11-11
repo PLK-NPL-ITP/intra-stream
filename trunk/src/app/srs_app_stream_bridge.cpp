@@ -327,11 +327,11 @@ void SrsSrtBridge::on_unpublish()
     // So there is no need to free its components here.
 }
 
-srs_error_t SrsSrtBridge::on_packet(SrsSrtPacket *pkt)
+srs_error_t SrsSrtBridge::on_srt_packet(SrsSrtPacket *pkt)
 {
     srs_error_t err = srs_success;
 
-    if ((err = frame_builder_->on_packet(pkt)) != srs_success) {
+    if ((err = frame_builder_->on_srt_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "frame builder on packet");
     }
 

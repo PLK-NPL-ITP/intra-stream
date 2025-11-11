@@ -29,6 +29,7 @@ using namespace std;
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_protocol.hpp>
 
+#ifdef SRS_GB28181
 // Mock ISrsGbMuxer implementation
 MockGbMuxer::MockGbMuxer()
 {
@@ -2294,6 +2295,7 @@ VOID TEST(GB28181Test, GoApiGbPublishSuccess)
 
     srs_freep(conf);
 }
+#endif
 
 // Mock ISrsRtcNetwork implementation
 MockRtcNetworkForNetworks::MockRtcNetworkForNetworks()

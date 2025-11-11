@@ -340,6 +340,7 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames);
     virtual std::string server_id();
     virtual std::string service_id();
     virtual std::string service_pid();
@@ -354,6 +355,7 @@ public:
     void reset();
 };
 
+#ifdef SRS_RTSP
 // Mock ISrsRtspSourceManager for testing SrsRtspPlayStream
 class MockRtspSourceManager : public ISrsRtspSourceManager
 {
@@ -456,6 +458,7 @@ public:
     virtual void set_all_tracks_status(bool status);
     void reset();
 };
+#endif
 
 // Mock ISrsDvrPlan for testing SrsDvrSegmenter
 class MockDvrPlan : public ISrsDvrPlan

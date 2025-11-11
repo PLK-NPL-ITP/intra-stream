@@ -2392,7 +2392,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "rtc") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check" && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp" && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate" && m != "aac_bitrate" && m != "keep_avc_nalu_sei" && m != "init_rate_from_sdp") {
+                    if (m != "enabled" && m != "nack" && m != "twcc" && m != "nack_no_copy" && m != "bframe" && m != "aac" && m != "stun_timeout" && m != "stun_strict_check" && m != "dtls_role" && m != "dtls_version" && m != "drop_for_pt" && m != "rtc_to_rtmp" && m != "pli_for_rtmp" && m != "rtmp_to_rtc" && m != "keep_bframe" && m != "opus_bitrate" && m != "aac_bitrate" && m != "keep_avc_nalu_sei" && m != "init_rate_from_sdp" && m != "keep_original_ssrc") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.rtc.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -4289,6 +4289,25 @@ bool SrsConfig::get_rtc_init_rate_from_sdp(string vhost)
     }
 
     conf = conf->get("init_rate_from_sdp");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_rtc_keep_original_ssrc(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.rtc.keep_original_ssrc"); // SRS_VHOST_RTC_KEEP_ORIGINAL_SSRC
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = get_rtc(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("keep_original_ssrc");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
@@ -7908,10 +7927,10 @@ bool SrsConfig::get_srt_enabled(std::string vhost)
 
 bool SrsConfig::get_srt_to_rtmp(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.srt.srt_to_rtmp"); // SRS_VHOST_SRT_SRT_TO_RTMP
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.srt.to_rtmp");     // SRS_VHOST_SRT_TO_RTMP
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.srt.srt_to_rtmp"); // SRS_VHOST_SRT_SRT_TO_RTMP
+    SRS_OVERWRITE_BY_ENV_BOOL2("srs.vhost.srt.to_rtmp");     // SRS_VHOST_SRT_TO_RTMP
 
-    static bool DEFAULT = true;
+    static bool DEFAULT = false;
 
     SrsConfDirective *conf = get_srt(vhost);
     if (!conf) {

@@ -30,6 +30,7 @@
 #include <srs_app_rtsp_conn.hpp>
 #endif
 
+#ifdef SRS_GB28181
 // Mock ISrsGbMuxer for testing SrsGbSession
 class MockGbMuxer : public ISrsGbMuxer
 {
@@ -541,6 +542,7 @@ public:
 #endif
     void reset();
 };
+#endif
 
 // Mock ISrsRtcNetwork for testing SrsRtcNetworks
 class MockRtcNetworkForNetworks : public ISrsRtcNetwork

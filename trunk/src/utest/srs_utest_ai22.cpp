@@ -1482,6 +1482,11 @@ srs_error_t MockStatisticForRtspPlayStream::on_video_frames(ISrsRequest *req, in
     return srs_success;
 }
 
+srs_error_t MockStatisticForRtspPlayStream::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForRtspPlayStream::server_id()
 {
     return "mock_server_id";
@@ -1549,6 +1554,7 @@ void MockStatisticForRtspPlayStream::reset()
     srs_freep(on_client_error_);
 }
 
+#ifdef SRS_RTSP
 // MockRtspSourceManager implementation
 MockRtspSourceManager::MockRtspSourceManager()
 {
@@ -2750,6 +2756,7 @@ VOID TEST(RtspTcpNetworkTest, WriteRtpPacket)
     // Verify the payload data (starts at offset 4)
     EXPECT_EQ(0, memcmp(rtp_packet, output + 4, kRtpPacketSize));
 }
+#endif
 
 // MockDvrPlan implementation
 MockDvrPlan::MockDvrPlan()

@@ -45,6 +45,7 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, ManuallyVerify)
     MockExpire mock_expire;
     MockRtcPacketReceiver mock_receiver;
     MockRtcTrackDescriptionFactory track_factory;
+    MockRtcFormat mock_format;
     SrsContextId cid;
     cid.set_value("test-publish-stream-cid");
 
@@ -57,6 +58,10 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, ManuallyVerify)
         publish_stream->config_ = &mock_config;
         publish_stream->rtc_sources_ = &mock_rtc_sources;
         publish_stream->stat_ = &mock_stat;
+
+        // Replace the real format_ with mock format
+        srs_freep(publish_stream->format_);
+        publish_stream->format_ = &mock_format;
     }
 
     // Create stream description with audio and video tracks
@@ -96,4 +101,8 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, ManuallyVerify)
 
     // Stop the publish stream
     publish_stream->stop();
+
+    // Before destroying publish_stream, set format_ to NULL to prevent double-free
+    // since mock_format is a stack variable
+    publish_stream->format_ = NULL;
 }

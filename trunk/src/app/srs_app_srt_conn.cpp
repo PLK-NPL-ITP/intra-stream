@@ -696,7 +696,7 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char *buf, int nb_buf)
     SrsUniquePtr<SrsSrtPacket> packet(new SrsSrtPacket());
     packet->wrap(buf, nb_buf);
 
-    if ((err = srt_source_->on_packet(packet.get())) != srs_success) {
+    if ((err = srt_source_->on_srt_packet(packet.get())) != srs_success) {
         return srs_error_wrap(err, "on srt packet");
     }
 

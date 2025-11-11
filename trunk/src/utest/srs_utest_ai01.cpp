@@ -7152,9 +7152,9 @@ VOID TEST(ConfigSrtVhostTest, CheckSrtToRtmp)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be true
-        EXPECT_TRUE(conf.get_srt_to_rtmp("__defaultVhost__"));
-        EXPECT_TRUE(conf.get_srt_to_rtmp("test.com"));
+        // Default should be false (off)
+        EXPECT_FALSE(conf.get_srt_to_rtmp("__defaultVhost__"));
+        EXPECT_FALSE(conf.get_srt_to_rtmp("test.com"));
     }
 
     // Test default value when vhost exists but no srt section
@@ -7163,7 +7163,7 @@ VOID TEST(ConfigSrtVhostTest, CheckSrtToRtmp)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
 
         // Should return default value when no srt section
-        EXPECT_TRUE(conf.get_srt_to_rtmp("test.com"));
+        EXPECT_FALSE(conf.get_srt_to_rtmp("test.com"));
     }
 
     // Test default value when srt section exists but no srt_to_rtmp config
@@ -7172,7 +7172,7 @@ VOID TEST(ConfigSrtVhostTest, CheckSrtToRtmp)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{srt{enabled on;}}"));
 
         // Should return default value when no srt_to_rtmp config
-        EXPECT_TRUE(conf.get_srt_to_rtmp("test.com"));
+        EXPECT_FALSE(conf.get_srt_to_rtmp("test.com"));
     }
 
     // Test explicit srt_to_rtmp enabled
@@ -7206,7 +7206,7 @@ VOID TEST(ConfigSrtVhostTest, CheckSrtToRtmp)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{srt{srt_to_rtmp;}}"));
 
-        EXPECT_TRUE(conf.get_srt_to_rtmp("test.com")); // Default value
+        EXPECT_FALSE(conf.get_srt_to_rtmp("test.com")); // Default value is false (off)
     }
 }
 

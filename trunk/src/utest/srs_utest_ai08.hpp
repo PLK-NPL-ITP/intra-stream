@@ -79,7 +79,7 @@ public:
 public:
     MockSrtTarget();
     virtual ~MockSrtTarget();
-    virtual srs_error_t on_packet(SrsSrtPacket *pkt);
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt);
     void set_packet_error(srs_error_t err);
 };
 

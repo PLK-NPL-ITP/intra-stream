@@ -64,7 +64,7 @@ public:
     virtual ~ISrsSrtTarget();
 
 public:
-    virtual srs_error_t on_packet(SrsSrtPacket *pkt) = 0;
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt) = 0;
 };
 
 // A RTMP bridge is used to convert RTMP stream to different protocols,
@@ -171,7 +171,7 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r);
     virtual srs_error_t on_publish();
     virtual void on_unpublish();
-    virtual srs_error_t on_packet(SrsSrtPacket *pkt);
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt);
     virtual srs_error_t on_frame(SrsMediaPacket *frame);
 };
 

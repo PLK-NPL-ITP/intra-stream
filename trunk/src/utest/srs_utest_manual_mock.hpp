@@ -78,9 +78,15 @@ public:
 
 public:
     // Create a Chrome-like WebRTC publisher offer SDP
-    std::string create_chrome_publisher_offer();
+    std::string create_chrome_publisher_offer_with_h264();
     // Create a Chrome-like WebRTC player offer SDP
-    std::string create_chrome_player_offer();
+    std::string create_chrome_player_offer_with_h264();
+    // Create a Chrome-like WebRTC publisher offer SDP with AV1
+    std::string create_chrome_publisher_offer_with_av1();
+    // Create a Chrome-like WebRTC publisher offer SDP with VP9
+    std::string create_chrome_publisher_offer_with_vp9();
+    // Create a Chrome-like WebRTC publisher offer SDP with G.711 PCMU audio
+    std::string create_chrome_publisher_offer_with_g711_pcmu();
 };
 
 // Mock DTLS certificate for testing
@@ -162,6 +168,8 @@ class MockRtcSource : public SrsRtcSource
 {
 public:
     int on_rtp_count_;
+    int rtp_audio_count_;
+    int rtp_video_count_;
 
 public:
     MockRtcSource();
@@ -215,6 +223,7 @@ public:
     virtual void kbps_add_delta(std::string id, ISrsKbpsDelta *delta);
     virtual void kbps_sample();
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames);
+    virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames);
     virtual std::string server_id();
     virtual std::string service_id();
     virtual std::string service_pid();
@@ -261,6 +270,26 @@ public:
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket *pkt);
     void set_send_packet_error(srs_error_t err);
+};
+
+// Mock RTC format for testing
+class MockRtcFormat : public ISrsRtcFormat
+{
+public:
+    srs_error_t initialize_error_;
+    srs_error_t on_rtp_packet_error_;
+    int initialize_count_;
+    int on_rtp_packet_count_;
+
+public:
+    MockRtcFormat();
+    virtual ~MockRtcFormat();
+
+public:
+    virtual srs_error_t initialize(ISrsRequest *req);
+    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio);
+    void set_initialize_error(srs_error_t err);
+    void set_on_rtp_packet_error(srs_error_t err);
 };
 
 // Mock app config for testing
@@ -502,6 +531,7 @@ public:
     virtual int get_rtc_drop_for_pt(std::string vhost) { return rtc_drop_for_pt_; }
     virtual bool get_rtc_twcc_enabled(std::string vhost) { return rtc_twcc_enabled_; }
     virtual bool get_rtc_init_rate_from_sdp(std::string vhost) { return rtc_init_rate_from_sdp_; }
+    virtual bool get_rtc_keep_original_ssrc(std::string vhost) { return false; }
     virtual bool get_srt_enabled() { return srt_enabled_; }
     virtual bool get_srt_enabled(std::string vhost) { return srt_enabled_; }
     virtual std::string get_srt_default_streamid() { return "#!::r=live/livestream,m=request"; }
@@ -767,10 +797,28 @@ public:
 public:
     virtual bool can_publish();
     virtual srs_error_t on_publish();
-    virtual srs_error_t on_packet(SrsSrtPacket *packet);
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *packet);
 
 public:
     virtual void set_can_publish(bool can_publish);
+};
+
+// Mock SRT format for testing
+class MockSrtFormat : public ISrsSrtFormat
+{
+public:
+    int initialize_count_;
+    int on_srt_packet_count_;
+    srs_error_t initialize_error_;
+    srs_error_t on_srt_packet_error_;
+
+public:
+    MockSrtFormat();
+    virtual ~MockSrtFormat();
+
+public:
+    virtual srs_error_t initialize(ISrsRequest *req);
+    virtual srs_error_t on_srt_packet(SrsSrtPacket *pkt);
 };
 
 // Mock SRT source manager for testing SrsRtcPublishStream
@@ -1295,6 +1343,25 @@ public:
     virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs);
     virtual void free_frames(std::vector<SrsParsedAudioPacket *> &frames);
     virtual void aac_codec_header(uint8_t **data, int *len);
+};
+
+// Mock ISrsProtocolUtility for testing RTC connections
+// This class merges functionality from MockProtocolUtility in srs_utest_ai18.hpp
+// It supports both simple single-IP usage (via constructor) and complex multi-IP usage (via add_ip)
+class MockProtocolUtility : public ISrsProtocolUtility
+{
+public:
+    std::vector<SrsIPAddress *> ips_;
+    std::string mock_ip_;
+
+public:
+    MockProtocolUtility(std::string ip = "");
+    virtual ~MockProtocolUtility();
+
+public:
+    virtual std::vector<SrsIPAddress *> &local_ips();
+    void add_ip(std::string ip, std::string ifname, bool is_ipv4, bool is_loopback, bool is_internet);
+    void clear_ips();
 };
 
 #endif

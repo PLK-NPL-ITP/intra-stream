@@ -7,6 +7,16 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-11-11, AI: SRT: Stop TS parsing after codec detection. v7.0.125 (#4569)
+* v7.0, 2025-11-09, AI: WebRTC: Support G.711 (PCMU/PCMA) audio codec for WebRTC. v7.0.124 (#4075)
+* v7.0, 2025-11-08, AI: WebRTC: Support VP9 codec for WebRTC-to-WebRTC streaming. v7.0.123 (#4548)
+* v7.0, 2025-11-08, AI: API: Add audio_frames and video_frames to HTTP API. v7.0.122 (#4559)
+* v7.0, 2025-11-07, AI: WHIP: Return detailed HTTP error responses with proper status codes. v7.0.121 (#4502)
+* v7.0, 2025-11-07, AI: HLS: Support query string in hls_key_url for JWT tokens. v7.0.120 (#4426)
+* v7.0, 2025-11-07, AI: RTC: Support keep_original_ssrc to preserve SSRC and timestamps. v7.0.119 (#3850)
+* v7.0, 2025-11-05, AI: WebRTC: Report video/audio codec info and frame stats in HTTP API. v7.0.118 (#4554)
+* v7.0, 2025-11-04, AI: SRT: Report video/audio codec info and frame stats in HTTP API. v7.0.117 (#4554)
+* v7.0, 2025-11-03, Merge [#4556](https://github.com/ossrs/srs/pull/4556): Fill missing defs for H264/AVC video levels. v7.0.116 (#4556)
 * v7.0, 2025-10-31, Merge [#4547](https://github.com/ossrs/srs/pull/4547): Add ignore configuration for cursor. v7.0.115 (#4547)
 * v7.0, 2025-10-30, WebRTC: Use realtime for TWCC timestamp accuracy. v7.0.114
 * v7.0, 2025-10-30, AI: HLS: Fix crash when segment is not open by adding NULL checks. v7.0.113 (#3431)

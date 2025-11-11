@@ -97,13 +97,15 @@ SrsStatisticStream::SrsStatisticStream()
     kbps_ = new SrsKbps();
 
     nb_clients_ = 0;
-    frames_ = new SrsPps();
+    video_frames_ = new SrsPps();
+    audio_frames_ = new SrsPps();
 }
 
 SrsStatisticStream::~SrsStatisticStream()
 {
     srs_freep(kbps_);
-    srs_freep(frames_);
+    srs_freep(video_frames_);
+    srs_freep(audio_frames_);
 }
 
 srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
@@ -118,7 +120,9 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
     obj->set("url", SrsJsonAny::str(url_.c_str()));
     obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_time_now_cached())));
     obj->set("clients", SrsJsonAny::integer(nb_clients_));
-    obj->set("frames", SrsJsonAny::integer(frames_->sugar_));
+    obj->set("frames", SrsJsonAny::integer(video_frames_->sugar_ + audio_frames_->sugar_));
+    obj->set("audio_frames", SrsJsonAny::integer(audio_frames_->sugar_));
+    obj->set("video_frames", SrsJsonAny::integer(video_frames_->sugar_));
     obj->set("send_bytes", SrsJsonAny::integer(kbps_->get_send_bytes()));
     obj->set("recv_bytes", SrsJsonAny::integer(kbps_->get_recv_bytes()));
 
@@ -150,6 +154,12 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
         } else if (vcodec_ == SrsVideoCodecIdHEVC) {
             video->set("profile", SrsJsonAny::str(srs_hevc_profile2str(hevc_profile_).c_str()));
             video->set("level", SrsJsonAny::str(srs_hevc_level2str(hevc_level_).c_str()));
+        } else if (vcodec_ == SrsVideoCodecIdAV1) {
+            video->set("profile", SrsJsonAny::null());
+            video->set("level", SrsJsonAny::null());
+        } else if (vcodec_ == SrsVideoCodecIdVP9) {
+            video->set("profile", SrsJsonAny::null());
+            video->set("level", SrsJsonAny::null());
         } else {
             video->set("profile", SrsJsonAny::str("Other"));
             video->set("level", SrsJsonAny::str("Other"));
@@ -168,7 +178,13 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
         audio->set("codec", SrsJsonAny::str(srs_audio_codec_id2str(acodec_).c_str()));
         audio->set("sample_rate", SrsJsonAny::integer(srs_audio_sample_rate2number(asample_rate_)));
         audio->set("channel", SrsJsonAny::integer(asound_type_ + 1));
-        audio->set("profile", SrsJsonAny::str(srs_aac_object2str(aac_object_).c_str()));
+
+        // G.711 codecs don't have profiles, similar to VP9/AV1
+        if (acodec_ == SrsAudioCodecIdPCMA || acodec_ == SrsAudioCodecIdPCMU) {
+            audio->set("profile", SrsJsonAny::null());
+        } else {
+            audio->set("profile", SrsJsonAny::str(srs_aac_object2str(aac_object_).c_str()));
+        }
     }
 
     return err;
@@ -395,7 +411,19 @@ srs_error_t SrsStatistic::on_video_frames(ISrsRequest *req, int nb_frames)
     SrsStatisticVhost *vhost = create_vhost(req);
     SrsStatisticStream *stream = create_stream(vhost, req);
 
-    stream->frames_->sugar_ += nb_frames;
+    stream->video_frames_->sugar_ += nb_frames;
+
+    return err;
+}
+
+srs_error_t SrsStatistic::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    srs_error_t err = srs_success;
+
+    SrsStatisticVhost *vhost = create_vhost(req);
+    SrsStatisticStream *stream = create_stream(vhost, req);
+
+    stream->audio_frames_->sugar_ += nb_frames;
 
     return err;
 }
@@ -542,7 +570,8 @@ void SrsStatistic::kbps_sample()
         for (it = streams_.begin(); it != streams_.end(); it++) {
             SrsStatisticStream *stream = it->second;
             stream->kbps_->sample();
-            stream->frames_->update();
+            stream->video_frames_->update();
+            stream->audio_frames_->update();
         }
     }
     if (true) {

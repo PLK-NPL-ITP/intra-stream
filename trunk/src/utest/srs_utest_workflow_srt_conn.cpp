@@ -53,6 +53,7 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPublisher)
     SrsUniquePtr<MockSrtSourceManager> mock_srt_sources(new MockSrtSourceManager());
     MockSrtConnection *mock_srt_conn = new MockSrtConnection();
     MockSecurity *mock_security = new MockSecurity();
+    MockSrtFormat *mock_format = new MockSrtFormat();
 
     mock_config->default_vhost_ = new SrsConfDirective();
     mock_config->default_vhost_->name_ = "vhost";
@@ -99,6 +100,11 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPublisher)
 
     // Create MPEG-TS packets to feed the SRT source.
     MockSrtSource *mock_srt_source = dynamic_cast<MockSrtSource *>(mock_srt_sources->mock_source_.get());
+    // Inject mock format into SRT source
+    if (true) {
+        srs_freep(mock_srt_source->format_);
+        mock_srt_source->format_ = mock_format;
+    }
     if (true) {
         // Create a simple MPEG-TS packet (188 bytes)
         // This is a minimal TS packet structure for testing
@@ -153,6 +159,7 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
     SrsUniquePtr<MockSrtSourceManager> mock_srt_sources(new MockSrtSourceManager());
     MockSrtConnection *mock_srt_conn = new MockSrtConnection();
     MockSecurity *mock_security = new MockSecurity();
+    MockSrtFormat *mock_format = new MockSrtFormat();
 
     mock_config->default_vhost_ = new SrsConfDirective();
     mock_config->default_vhost_->name_ = "vhost";
@@ -183,7 +190,6 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
     conn->security_ = mock_security;
 
     // Start the SRT connection.
-    MockSrtSource *srt_source = dynamic_cast<MockSrtSource *>(mock_srt_sources->mock_source_.get());
     if (true) {
         HELPER_EXPECT_SUCCESS(conn->start());
 
@@ -196,7 +202,15 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
         EXPECT_STREQ("__defaultVhost__", req->vhost_.c_str());
         EXPECT_STREQ("live", req->app_.c_str());
         EXPECT_STREQ("livestream", req->stream_.c_str());
-        EXPECT_EQ(1, (int)srt_source->consumers_.size());
+    }
+
+    // Create MPEG-TS packets to feed the SRT source.
+    MockSrtSource *mock_srt_source = dynamic_cast<MockSrtSource *>(mock_srt_sources->mock_source_.get());
+    EXPECT_EQ(1, (int)mock_srt_source->consumers_.size());
+    // Inject mock format into SRT source
+    if (true) {
+        srs_freep(mock_srt_source->format_);
+        mock_srt_source->format_ = mock_format;
     }
 
     // Feed TS packets to the SRT source consumer.
@@ -213,8 +227,8 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
 
         SrsUniquePtr<SrsSrtPacket> packet1(new SrsSrtPacket());
         packet1->wrap(ts_packet1, sizeof(ts_packet1));
-        HELPER_EXPECT_SUCCESS(srt_source->on_packet(packet1.get()));
-        EXPECT_EQ(1, srt_source->on_packet_count_);
+        HELPER_EXPECT_SUCCESS(mock_srt_source->on_srt_packet(packet1.get()));
+        EXPECT_EQ(1, mock_srt_source->on_packet_count_);
 
         // Create second MPEG-TS packet to trigger consumer signal
         char ts_packet2[188];
@@ -226,8 +240,8 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
 
         SrsUniquePtr<SrsSrtPacket> packet2(new SrsSrtPacket());
         packet2->wrap(ts_packet2, sizeof(ts_packet2));
-        HELPER_EXPECT_SUCCESS(srt_source->on_packet(packet2.get()));
-        EXPECT_EQ(2, srt_source->on_packet_count_);
+        HELPER_EXPECT_SUCCESS(mock_srt_source->on_srt_packet(packet2.get()));
+        EXPECT_EQ(2, mock_srt_source->on_packet_count_);
 
         // Wait for consumer to process the messages.
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);

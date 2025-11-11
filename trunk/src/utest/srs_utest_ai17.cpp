@@ -1707,6 +1707,11 @@ srs_error_t MockStatisticForRtcApi::on_video_frames(ISrsRequest *req, int nb_fra
     return srs_success;
 }
 
+srs_error_t MockStatisticForRtcApi::on_audio_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
 std::string MockStatisticForRtcApi::server_id()
 {
     return server_id_;
@@ -2254,7 +2259,7 @@ VOID TEST(SrsGoApiRtcWhipTest, ServeHttpDeleteSuccess)
 // Test SrsGoApiRtcWhip::serve_http() to verify the major use scenario for WHIP POST request.
 // This test covers the WHIP session creation flow (non-DELETE path):
 // 1. Client sends POST request with SDP offer in body
-// 2. Server processes the request via do_serve_http() which populates ruc.local_sdp_str_
+// 2. Server processes the request via do_serve_http_with() which populates ruc.local_sdp_str_
 // 3. Server returns 201 Created with SDP answer in body
 // 4. Server includes Location header for subsequent DELETE request
 // 5. Server sets Content-Type to application/sdp
@@ -2265,14 +2270,14 @@ VOID TEST(SrsGoApiRtcWhipTest, ServeHttpPostSuccess)
     // Create mock RTC API server
     SrsUniquePtr<MockRtcApiServer> mock_server(new MockRtcApiServer());
 
-    // Create testable WHIP handler that overrides do_serve_http
+    // Create testable WHIP handler that overrides do_serve_http_with
     class TestableWhip : public SrsGoApiRtcWhip
     {
     public:
         TestableWhip(ISrsRtcApiServer *server) : SrsGoApiRtcWhip(server) {}
-        virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc)
+        virtual srs_error_t do_serve_http_with(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc)
         {
-            // Mock the do_serve_http behavior by populating the required fields
+            // Mock the do_serve_http_with behavior by populating the required fields
             ruc->local_sdp_str_ = "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=SRS\r\nt=0 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\na=rtpmap:96 H264/90000\r\n";
             ruc->session_id_ = "test-session-12345";
             ruc->token_ = "test-token-67890";
@@ -2304,7 +2309,7 @@ VOID TEST(SrsGoApiRtcWhipTest, ServeHttpPostSuccess)
     // Call serve_http for POST request
     // Expected behavior:
     // 1. Check if method is DELETE (no, it's POST)
-    // 2. Call do_serve_http() which populates ruc.local_sdp_str_
+    // 2. Call do_serve_http_with() which populates ruc.local_sdp_str_
     // 3. Set Content-Type to application/sdp
     // 4. Set Location header with session and token
     // 5. Return 201 Created with SDP answer in body
@@ -2330,8 +2335,8 @@ VOID TEST(SrsGoApiRtcWhipTest, ServeHttpPostSuccess)
     EXPECT_TRUE(response.find("m=video 9 UDP/TLS/RTP/SAVPF 96") != std::string::npos);
 }
 
-// Test SrsGoApiRtcWhip::do_serve_http() - major use scenario for WHIP request parsing
-// This test covers the core parsing and validation logic of do_serve_http method:
+// Test SrsGoApiRtcWhip::do_serve_http_with() - major use scenario for WHIP request parsing
+// This test covers the core parsing and validation logic of do_serve_http_with method:
 // 1. Read SDP offer from request body
 // 2. Extract client IP from connection (with proxy IP override support)
 // 3. Parse query parameters (eip, codec, app, stream, action, ice-ufrag, ice-pwd, encrypt, dtls)
@@ -2437,7 +2442,7 @@ VOID TEST(SrsGoApiRtcWhipTest, DoServeHttpPublishSuccess)
     SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
 
     // Call do_serve_http - major use scenario
-    HELPER_EXPECT_SUCCESS(whip->do_serve_http(mock_writer.get(), mock_request.get(), ruc.get()));
+    HELPER_EXPECT_SUCCESS(whip->do_serve_http_with(mock_writer.get(), mock_request.get(), ruc.get()));
 
     // Verify request fields were populated correctly
     EXPECT_STREQ("192.168.1.100", ruc->req_->ip_.c_str());
@@ -2448,7 +2453,7 @@ VOID TEST(SrsGoApiRtcWhipTest, DoServeHttpPublishSuccess)
 
     // Verify RTC user config fields were set correctly
     EXPECT_STREQ("203.0.113.10", ruc->eip_.c_str());
-    EXPECT_STREQ("h264", ruc->codec_.c_str());
+    EXPECT_STREQ("h264", ruc->vcodec_.c_str());
     EXPECT_TRUE(ruc->publish_); // action=publish
     EXPECT_TRUE(ruc->dtls_);    // dtls=true
     EXPECT_TRUE(ruc->srtp_);    // encrypt=true
@@ -2464,6 +2469,186 @@ VOID TEST(SrsGoApiRtcWhipTest, DoServeHttpPublishSuccess)
 
     // Clean up
     whip->config_ = NULL;
+}
+
+// Test SrsGoApiRtcWhip::serve_http() error handling for invalid SDP.
+// This test verifies that WHIP returns HTTP 400 Bad Request when SDP parsing fails.
+VOID TEST(SrsGoApiRtcWhipTest, ServeHttpErrorInvalidSdp)
+{
+    srs_error_t err = srs_success;
+
+    // Create mock RTC API server
+    SrsUniquePtr<MockRtcApiServer> mock_server(new MockRtcApiServer());
+
+    // Create testable WHIP handler that simulates SDP parsing error
+    class TestableWhip : public SrsGoApiRtcWhip
+    {
+    public:
+        TestableWhip(ISrsRtcApiServer *server) : SrsGoApiRtcWhip(server) {}
+        virtual srs_error_t serve_http_with(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+        {
+            return srs_error_new(ERROR_RTC_SDP_DECODE, "invalid sdp format");
+        }
+    };
+
+    // Create testable WHIP instance
+    SrsUniquePtr<TestableWhip> whip(new TestableWhip(mock_server.get()));
+
+    // Create mock response writer
+    SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+
+    // Create mock HTTP message for WHIP POST request
+    SrsUniquePtr<MockHttpMessageForRtcApi> mock_request(new MockHttpMessageForRtcApi());
+    mock_request->set_method(SRS_CONSTS_HTTP_POST);
+
+    // Call serve_http - should return HTTP 400 Bad Request
+    HELPER_EXPECT_SUCCESS(whip->serve_http(mock_writer.get(), mock_request.get()));
+
+    // Verify response status is 400 Bad Request
+    EXPECT_EQ(SRS_CONSTS_HTTP_BadRequest, mock_writer->w->status_);
+
+    // Get the HTTP response
+    string response = string(mock_writer->io.out_buffer.bytes(), mock_writer->io.out_buffer.length());
+    EXPECT_FALSE(response.empty());
+
+    // Verify the response contains error code and description
+    EXPECT_TRUE(response.find("5012") != std::string::npos); // ERROR_RTC_SDP_DECODE
+    EXPECT_TRUE(response.find("RtcSdpDecode") != std::string::npos);
+}
+
+// Test SrsGoApiRtcWhip::serve_http() error handling for stream busy.
+// This test verifies that WHIP returns HTTP 409 Conflict when stream is already publishing.
+VOID TEST(SrsGoApiRtcWhipTest, ServeHttpErrorStreamBusy)
+{
+    srs_error_t err = srs_success;
+
+    // Create mock RTC API server
+    SrsUniquePtr<MockRtcApiServer> mock_server(new MockRtcApiServer());
+
+    // Create testable WHIP handler that simulates stream busy error
+    class TestableWhip : public SrsGoApiRtcWhip
+    {
+    public:
+        TestableWhip(ISrsRtcApiServer *server) : SrsGoApiRtcWhip(server) {}
+        virtual srs_error_t serve_http_with(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+        {
+            return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "stream already publishing");
+        }
+    };
+
+    // Create testable WHIP instance
+    SrsUniquePtr<TestableWhip> whip(new TestableWhip(mock_server.get()));
+
+    // Create mock response writer
+    SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+
+    // Create mock HTTP message for WHIP POST request
+    SrsUniquePtr<MockHttpMessageForRtcApi> mock_request(new MockHttpMessageForRtcApi());
+    mock_request->set_method(SRS_CONSTS_HTTP_POST);
+
+    // Call serve_http - should return HTTP 409 Conflict
+    HELPER_EXPECT_SUCCESS(whip->serve_http(mock_writer.get(), mock_request.get()));
+
+    // Verify response status is 409 Conflict
+    EXPECT_EQ(SRS_CONSTS_HTTP_Conflict, mock_writer->w->status_);
+
+    // Get the HTTP response
+    string response = string(mock_writer->io.out_buffer.bytes(), mock_writer->io.out_buffer.length());
+    EXPECT_FALSE(response.empty());
+
+    // Verify the response contains error code and description
+    EXPECT_TRUE(response.find("1028") != std::string::npos); // ERROR_SYSTEM_STREAM_BUSY
+    EXPECT_TRUE(response.find("StreamBusy") != std::string::npos);
+}
+
+// Test SrsGoApiRtcWhip::serve_http() error handling for authentication failure.
+// This test verifies that WHIP returns HTTP 401 Unauthorized when auth check fails.
+VOID TEST(SrsGoApiRtcWhipTest, ServeHttpErrorAuth)
+{
+    srs_error_t err = srs_success;
+
+    // Create mock RTC API server
+    SrsUniquePtr<MockRtcApiServer> mock_server(new MockRtcApiServer());
+
+    // Create testable WHIP handler that simulates auth error
+    class TestableWhip : public SrsGoApiRtcWhip
+    {
+    public:
+        TestableWhip(ISrsRtcApiServer *server) : SrsGoApiRtcWhip(server) {}
+        virtual srs_error_t serve_http_with(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+        {
+            return srs_error_new(ERROR_SYSTEM_AUTH, "authentication failed");
+        }
+    };
+
+    // Create testable WHIP instance
+    SrsUniquePtr<TestableWhip> whip(new TestableWhip(mock_server.get()));
+
+    // Create mock response writer
+    SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+
+    // Create mock HTTP message for WHIP POST request
+    SrsUniquePtr<MockHttpMessageForRtcApi> mock_request(new MockHttpMessageForRtcApi());
+    mock_request->set_method(SRS_CONSTS_HTTP_POST);
+
+    // Call serve_http - should return HTTP 401 Unauthorized
+    HELPER_EXPECT_SUCCESS(whip->serve_http(mock_writer.get(), mock_request.get()));
+
+    // Verify response status is 401 Unauthorized
+    EXPECT_EQ(SRS_CONSTS_HTTP_Unauthorized, mock_writer->w->status_);
+
+    // Get the HTTP response
+    string response = string(mock_writer->io.out_buffer.bytes(), mock_writer->io.out_buffer.length());
+    EXPECT_FALSE(response.empty());
+
+    // Verify the response contains error code and description
+    EXPECT_TRUE(response.find("1102") != std::string::npos); // ERROR_SYSTEM_AUTH
+    EXPECT_TRUE(response.find("SystemAuth") != std::string::npos);
+}
+
+// Test SrsGoApiRtcWhip::serve_http() error handling for internal server error.
+// This test verifies that WHIP returns HTTP 500 for unexpected errors.
+VOID TEST(SrsGoApiRtcWhipTest, ServeHttpErrorInternal)
+{
+    srs_error_t err = srs_success;
+
+    // Create mock RTC API server
+    SrsUniquePtr<MockRtcApiServer> mock_server(new MockRtcApiServer());
+
+    // Create testable WHIP handler that simulates internal error
+    class TestableWhip : public SrsGoApiRtcWhip
+    {
+    public:
+        TestableWhip(ISrsRtcApiServer *server) : SrsGoApiRtcWhip(server) {}
+        virtual srs_error_t serve_http_with(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+        {
+            return srs_error_new(ERROR_SOCKET_TIMEOUT, "socket timeout");
+        }
+    };
+
+    // Create testable WHIP instance
+    SrsUniquePtr<TestableWhip> whip(new TestableWhip(mock_server.get()));
+
+    // Create mock response writer
+    SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+
+    // Create mock HTTP message for WHIP POST request
+    SrsUniquePtr<MockHttpMessageForRtcApi> mock_request(new MockHttpMessageForRtcApi());
+    mock_request->set_method(SRS_CONSTS_HTTP_POST);
+
+    // Call serve_http - should return HTTP 500 Internal Server Error
+    HELPER_EXPECT_SUCCESS(whip->serve_http(mock_writer.get(), mock_request.get()));
+
+    // Verify response status is 500 Internal Server Error
+    EXPECT_EQ(SRS_CONSTS_HTTP_InternalServerError, mock_writer->w->status_);
+
+    // Get the HTTP response
+    string response = string(mock_writer->io.out_buffer.bytes(), mock_writer->io.out_buffer.length());
+    EXPECT_FALSE(response.empty());
+
+    // Verify the response contains error code and description
+    EXPECT_TRUE(response.find("1011") != std::string::npos); // ERROR_SOCKET_TIMEOUT
+    EXPECT_TRUE(response.find("SocketTimeout") != std::string::npos);
 }
 
 VOID TEST(RtcApiNackTest, ServeHttpSuccess)
@@ -3009,7 +3194,7 @@ VOID TEST(StatisticTest, StreamMediaInfo)
     // Verify frame count was accumulated correctly
     stream = stat->find_stream_by_url(req->get_stream_url());
     EXPECT_TRUE(stream != NULL);
-    EXPECT_EQ(55, stream->frames_->sugar_);
+    EXPECT_EQ(55, stream->video_frames_->sugar_);
 }
 
 // Test SrsStatistic audio sample rate handling for AAC 48000 Hz
@@ -3622,6 +3807,11 @@ void MockStatisticForHooks::kbps_sample()
 }
 
 srs_error_t MockStatisticForHooks::on_video_frames(ISrsRequest *req, int nb_frames)
+{
+    return srs_success;
+}
+
+srs_error_t MockStatisticForHooks::on_audio_frames(ISrsRequest *req, int nb_frames)
 {
     return srs_success;
 }
