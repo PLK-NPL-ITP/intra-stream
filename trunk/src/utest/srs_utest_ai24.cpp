@@ -8,6 +8,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_server.hpp>
@@ -19,6 +20,7 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -1174,4 +1176,243 @@ VOID TEST(AppUtilityTest, IsBoolean)
     EXPECT_FALSE(srs_is_boolean("0"));
     EXPECT_FALSE(srs_is_boolean(""));
     EXPECT_FALSE(srs_is_boolean("random"));
+}
+
+// Test: Parse libdatachannel SDP from issue 4570 and verify fields
+VOID TEST(SdpTest, ParseLibdatachannelSdpFromIssue4570)
+{
+    srs_error_t err;
+
+    // SDP from issue 4570 - libdatachannel format with video first, then audio
+    std::string sdp_str =
+        "v=0\r\n"
+        "o=- rtc 4158491451 0 IN IP4 127.0.0.1\r\n"
+        "s=-\r\n"
+        "t=0 0\r\n"
+        "a=group:BUNDLE video audio\r\n"
+        "a=group:LS video audio\r\n"
+        "a=msid-semantic:WMS *\r\n"
+        "a=ice-options:ice2,trickle\r\n"
+        "a=fingerprint:sha-256 28:37:F7:18:77:FC:46:33:6F:B2:0F:12:83:C2:BF:5C:61:5E:96:EB:4B:B9:97:81:92:7C:82:10:97:B8:8E:60\r\n"
+        "m=video 56144 UDP/TLS/RTP/SAVPF 96 97\r\n"
+        "c=IN IP4 172.24.64.1\r\n"
+        "a=mid:video\r\n"
+        "a=sendonly\r\n"
+        "a=ssrc:42 cname:video-send\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:96 H264/90000\r\n"
+        "a=rtcp-fb:96 nack\r\n"
+        "a=rtcp-fb:96 nack pli\r\n"
+        "a=rtcp-fb:96 goog-remb\r\n"
+        "a=fmtp:96 profile-level-id=42e01f;packetization-mode=1;level-asymmetry-allowed=1\r\n"
+        "a=rtpmap:97 RTX/90000\r\n"
+        "a=fmtp:97 apt=96\r\n"
+        "a=setup:actpass\r\n"
+        "a=ice-ufrag:fEw/\r\n"
+        "a=ice-pwd:jBua8YGWQKc/Vn6Y9EZ9+0\r\n"
+        "a=candidate:1 1 UDP 2122317823 172.24.64.1 56144 typ host\r\n"
+        "a=candidate:2 1 UDP 2122315767 10.0.0.94 56144 typ host\r\n"
+        "a=candidate:3 1 UDP 1686189695 111.43.134.137 56144 typ srflx raddr 0.0.0.0 rport 0\r\n"
+        "a=end-of-candidates\r\n"
+        "m=audio 56144 UDP/TLS/RTP/SAVPF 111\r\n"
+        "c=IN IP4 172.24.64.1\r\n"
+        "a=mid:audio\r\n"
+        "a=sendonly\r\n"
+        "a=ssrc:43 cname:audio-send\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:111 opus/48000/2\r\n"
+        "a=fmtp:111 minptime=10;maxaveragebitrate=98000;stereo=1;sprop-stereo=1;useinbandfec=1\r\n"
+        "a=setup:actpass\r\n"
+        "a=ice-ufrag:fEw/\r\n"
+        "a=ice-pwd:jBua8YGWQKc/Vn6Y9EZ9+0\r\n";
+
+    // Parse the SDP
+    SrsSdp sdp;
+    HELPER_EXPECT_SUCCESS(sdp.parse(sdp_str));
+
+    // Verify session-level fields
+    EXPECT_TRUE(sdp.version_ == "0");
+    EXPECT_TRUE(sdp.group_policy_ == "BUNDLE");
+    EXPECT_TRUE(sdp.groups_.size() == 2);
+    EXPECT_TRUE(sdp.groups_[0] == "video");
+    EXPECT_TRUE(sdp.groups_[1] == "audio");
+
+    // Verify we have 2 media descriptions (video and audio)
+    EXPECT_TRUE(sdp.media_descs_.size() == 2);
+
+    // Verify first media description is video
+    SrsMediaDesc *video_desc = &sdp.media_descs_[0];
+    EXPECT_TRUE(video_desc->type_ == "video");
+    EXPECT_TRUE(video_desc->mid_ == "video");
+    EXPECT_TRUE(video_desc->sendonly_);
+    EXPECT_FALSE(video_desc->recvonly_);
+    EXPECT_TRUE(video_desc->port_ == 56144);
+    EXPECT_TRUE(video_desc->protos_ == "UDP/TLS/RTP/SAVPF");
+
+    // Verify video payload types
+    EXPECT_TRUE(video_desc->payload_types_.size() >= 1);
+
+    // Find H264 payload (PT 96)
+    SrsMediaPayloadType *h264_payload = NULL;
+    for (size_t i = 0; i < video_desc->payload_types_.size(); i++) {
+        if (video_desc->payload_types_[i].payload_type_ == 96) {
+            h264_payload = &video_desc->payload_types_[i];
+            break;
+        }
+    }
+    EXPECT_TRUE(h264_payload != NULL);
+    EXPECT_TRUE(h264_payload->encoding_name_ == "H264");
+    EXPECT_TRUE(h264_payload->clock_rate_ == 90000);
+
+    // Verify video SSRC
+    EXPECT_TRUE(video_desc->ssrc_infos_.size() >= 1);
+    bool found_video_ssrc = false;
+    for (size_t i = 0; i < video_desc->ssrc_infos_.size(); i++) {
+        if (video_desc->ssrc_infos_[i].ssrc_ == 42) {
+            found_video_ssrc = true;
+            EXPECT_TRUE(video_desc->ssrc_infos_[i].cname_ == "video-send");
+            break;
+        }
+    }
+    EXPECT_TRUE(found_video_ssrc);
+
+    // Verify second media description is audio
+    SrsMediaDesc *audio_desc = &sdp.media_descs_[1];
+    EXPECT_TRUE(audio_desc->type_ == "audio");
+    EXPECT_TRUE(audio_desc->mid_ == "audio");
+    EXPECT_TRUE(audio_desc->sendonly_);
+    EXPECT_FALSE(audio_desc->recvonly_);
+    EXPECT_TRUE(audio_desc->port_ == 56144);
+    EXPECT_TRUE(audio_desc->protos_ == "UDP/TLS/RTP/SAVPF");
+
+    // Verify audio payload types
+    EXPECT_TRUE(audio_desc->payload_types_.size() >= 1);
+
+    // Find Opus payload (PT 111)
+    SrsMediaPayloadType *opus_payload = NULL;
+    for (size_t i = 0; i < audio_desc->payload_types_.size(); i++) {
+        if (audio_desc->payload_types_[i].payload_type_ == 111) {
+            opus_payload = &audio_desc->payload_types_[i];
+            break;
+        }
+    }
+    EXPECT_TRUE(opus_payload != NULL);
+    EXPECT_TRUE(opus_payload->encoding_name_ == "opus");
+    EXPECT_TRUE(opus_payload->clock_rate_ == 48000);
+    EXPECT_TRUE(opus_payload->encoding_param_ == "2");
+
+    // Verify audio SSRC
+    EXPECT_TRUE(audio_desc->ssrc_infos_.size() >= 1);
+    bool found_audio_ssrc = false;
+    for (size_t i = 0; i < audio_desc->ssrc_infos_.size(); i++) {
+        if (audio_desc->ssrc_infos_[i].ssrc_ == 43) {
+            found_audio_ssrc = true;
+            EXPECT_TRUE(audio_desc->ssrc_infos_[i].cname_ == "audio-send");
+            break;
+        }
+    }
+    EXPECT_TRUE(found_audio_ssrc);
+}
+
+// Test: srs_api_parse_pagination with various input scenarios
+VOID TEST(HttpApiPaginationTest, ParsePagination)
+{
+    int start, count;
+
+    // Test 1: Default values (no query parameters)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(10, count);
+    }
+
+    // Test 2: Valid start and count
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "5";
+        mock_msg.query_params_["count"] = "20";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(5, start);
+        EXPECT_EQ(20, count);
+    }
+
+    // Test 3: Zero count (should use minimum 1)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "0";
+        mock_msg.query_params_["count"] = "0";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(1, count);
+    }
+
+    // Test 4: Negative start (should use minimum 0)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "-10";
+        mock_msg.query_params_["count"] = "5";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(5, count);
+    }
+
+    // Test 5: Negative count (should use minimum 1)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "10";
+        mock_msg.query_params_["count"] = "-5";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(10, start);
+        EXPECT_EQ(1, count);
+    }
+
+    // Test 6: Empty count string (should use default 10)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "5";
+        mock_msg.query_params_["count"] = "";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(5, start);
+        EXPECT_EQ(10, count);
+    }
+
+    // Test 7: Only start parameter
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "15";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(15, start);
+        EXPECT_EQ(10, count);
+    }
+
+    // Test 8: Only count parameter
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["count"] = "25";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(25, count);
+    }
+
+    // Test 9: Invalid (non-numeric) values
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "abc";
+        mock_msg.query_params_["count"] = "xyz";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        // atoi returns 0 for invalid strings
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(1, count); // minimum enforced since atoi returns 0
+    }
+
+    // Test 10: Large values
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "1000000";
+        mock_msg.query_params_["count"] = "500";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(1000000, start);
+        EXPECT_EQ(500, count);
+    }
 }

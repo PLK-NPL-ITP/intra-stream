@@ -179,7 +179,7 @@ srs_error_t SrsSrtSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<Sr
             pps = source;
         } else {
             SrsSharedPtr<SrsSrtSource> source(new SrsSrtSource());
-            srs_trace("new srt source, stream_url=%s", stream_url.c_str());
+            srs_trace("new srt source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
             pool_[stream_url] = source;
@@ -293,20 +293,23 @@ srs_error_t SrsSrtConsumer::dump_packet(SrsSrtPacket **ppkt)
     return err;
 }
 
-void SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
+bool SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
 {
     mw_min_msgs_ = nb_msgs;
 
-    // when duration ok, signal to flush.
-    if ((int)queue_.size() > mw_min_msgs_) {
-        return;
+    // When duration ok, signal to flush.
+    if ((int)queue_.size() >= mw_min_msgs_) {
+        return true;
     }
 
-    // the enqueue will notify this cond.
+    // The enqueue will notify this cond.
     mw_waiting_ = true;
 
-    // use cond block wait for high performance mode.
+    // Use cond block wait for high performance mode.
     srs_cond_timedwait(mw_wait_, timeout);
+
+    // Return true if there are enough messages after wait.
+    return (int)queue_.size() >= mw_min_msgs_;
 }
 
 SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsFrameTarget *target)
@@ -1230,7 +1233,10 @@ SrsSrtSource::SrsSrtSource()
     req_ = NULL;
     can_publish_ = true;
     srt_bridge_ = NULL;
-    stream_die_at_ = 0;
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = srs_time_now_cached();
 
     stat_ = _srs_stat;
     format_ = new SrsSrtFormat();
